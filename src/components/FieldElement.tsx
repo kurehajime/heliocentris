@@ -13,19 +13,39 @@ const FieldElement = ({ fixedField, fallingField, config, groundOffset }: FieldE
   const padding = 8
   const totalWidth = config.fieldSize.width * blockSize
 
+  const renderFixedCells = () =>
+    fixedField.map((row, y) =>
+      row.map((cell, x) => {
+        const renderX = ((x * blockSize + groundOffset) % totalWidth + totalWidth) % totalWidth
+        const renderY = y * blockSize
+        return (
+          <BlockElement
+            key={`fixed-${x}-${y}-${renderX}`}
+            cell={cell}
+            x={renderX}
+            y={renderY}
+            size={blockSize}
+          />
+        )
+      })
+    )
+
+  const renderFallingCells = () =>
+    fallingField.flatMap((row, y) =>
+      row.flatMap((cell, x) => {
+        if (!cell || cell.state === 'Empty') return []
+        const renderX = x * blockSize
+        const renderY = y * blockSize
+        return [
+          <BlockElement key={`fall-${x}-${y}`} cell={cell} x={renderX} y={renderY} size={blockSize} />,
+        ]
+      })
+    )
+
   return (
     <g transform={`translate(${padding}, ${padding})`}>
-      {fixedField.map((row, y) =>
-        row.map((fixedCell, x) => {
-          const fallingCell = fallingField[y]?.[x]
-          const cell = fallingCell && fallingCell.state !== 'Empty' ? fallingCell : fixedCell
-          const renderX = ((x * blockSize + groundOffset) % totalWidth + totalWidth) % totalWidth
-          const renderY = y * blockSize
-          return (
-            <BlockElement key={`${x}-${y}`} cell={cell} x={renderX} y={renderY} size={blockSize} />
-          )
-        })
-      )}
+      {renderFixedCells()}
+      {renderFallingCells()}
     </g>
   )
 }
