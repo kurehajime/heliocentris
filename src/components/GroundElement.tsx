@@ -7,8 +7,8 @@ type Props = {
 
 const GroundElement = ({ config, ground }: Props) => {
   const width = config.groundWidthPx
-  const height = 40
-  const y = config.fieldSize.height * 20 + 12
+  const height = config.cellSizePx * 2
+  const y = config.fieldSize.height * config.cellSizePx + 12
   const x = (ground.offsetPx % width) - width / 2
   return <rect x={x} y={y} width={width * 2} height={height} fill="#b45309" opacity={0.8} />
 }

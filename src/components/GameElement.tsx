@@ -100,7 +100,12 @@ const GameElement = () => {
       {/* ステージ背景 */}
       <g transform={`translate(${STAGE_X}, ${STAGE_Y})`}>
         <rect width={STAGE_WIDTH} height={520} rx={24} fill="rgba(15,23,42,0.8)" stroke="#1d4ed8" />
-        <FieldElement field={game.fixedField} config={DEFAULT_CONFIG} groundOffset={game.ground.offsetPx} />
+        <FieldElement
+          fixedField={game.fixedField}
+          fallingField={game.fallingField}
+          config={DEFAULT_CONFIG}
+          groundOffset={game.ground.offsetPx}
+        />
         <GroundElement config={DEFAULT_CONFIG} ground={game.ground} />
       </g>
 

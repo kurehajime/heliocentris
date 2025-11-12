@@ -1,25 +1,28 @@
 import BlockElement from './BlockElement'
-import type { FixedField, GameConfig } from '../types/game'
+import type { FallingField, FixedField, GameConfig } from '../types/game'
 
 type FieldElementProps = {
-  field: FixedField
+  fixedField: FixedField
+  fallingField: FallingField
   config: GameConfig
   groundOffset: number
 }
 
-const FieldElement = ({ field, config, groundOffset }: FieldElementProps) => {
-  const blockSize = 20
+const FieldElement = ({ fixedField, fallingField, config, groundOffset }: FieldElementProps) => {
+  const blockSize = config.cellSizePx
   const padding = 8
+  const totalWidth = config.fieldSize.width * blockSize
 
   return (
     <g transform={`translate(${padding}, ${padding})`}>
-      {field.map((row, y) =>
-        row.map((cell, x) => {
-          const renderX = (x * blockSize + groundOffset) % (config.fieldSize.width * blockSize)
-          const normalizedX = renderX < 0 ? renderX + config.fieldSize.width * blockSize : renderX
+      {fixedField.map((row, y) =>
+        row.map((fixedCell, x) => {
+          const fallingCell = fallingField[y]?.[x]
+          const cell = fallingCell && fallingCell.state !== 'Empty' ? fallingCell : fixedCell
+          const renderX = ((x * blockSize + groundOffset) % totalWidth + totalWidth) % totalWidth
           const renderY = y * blockSize
           return (
-            <BlockElement key={`${x}-${y}`} cell={cell} x={normalizedX} y={renderY} size={blockSize} />
+            <BlockElement key={`${x}-${y}`} cell={cell} x={renderX} y={renderY} size={blockSize} />
           )
         })
       )}

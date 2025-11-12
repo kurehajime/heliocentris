@@ -66,6 +66,7 @@ export type GameConfig = {
   deleteDelayMs: number
   fieldSize: FieldSize
   groundWidthPx: number
+  cellSizePx: number
 }
 
 export type NextMinoQueue = MinoType[]
