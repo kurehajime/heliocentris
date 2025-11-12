@@ -49,8 +49,18 @@ const GameElement = () => {
     applyLastCommand()
   }
 
+  const startGame = useCallback(() => {
+    setGame((prev) => {
+      if (prev.phase === 'playing') return prev
+      return GameManager.start(prev)
+    })
+  }, [])
+
   const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId)
+    if (game.phase === 'ready') {
+      startGame()
+    }
     updateInput((prev) => InputManager.startDrag(prev, event.clientX))
   }
 
@@ -68,10 +78,6 @@ const GameElement = () => {
 
   const handlePointerLeave = () => {
     if (inputRef.current.isDragging) finishDrag()
-  }
-
-  const startGame = () => {
-    setGame((prev) => GameManager.start(prev))
   }
 
   const resetGame = () => {

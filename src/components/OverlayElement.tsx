@@ -38,8 +38,11 @@ const OverlayElement = ({ phase, canvasWidth, canvasHeight, onStart, onReset }: 
       </text>
       <g
         transform={`translate(${centerX - buttonWidth - buttonGap / 2}, ${centerY})`}
-        onPointerUp={onStart}
-        cursor="pointer"
+        onPointerDown={(event) => {
+          event.stopPropagation()
+          onStart()
+        }}
+        style={{ cursor: 'pointer' }}
       >
         <rect width={buttonWidth} height={buttonHeight} rx={999} fill="#38bdf8" />
         <text
@@ -54,8 +57,11 @@ const OverlayElement = ({ phase, canvasWidth, canvasHeight, onStart, onReset }: 
       </g>
       <g
         transform={`translate(${centerX + buttonGap / 2}, ${centerY})`}
-        onPointerUp={onReset}
-        cursor="pointer"
+        onPointerDown={(event) => {
+          event.stopPropagation()
+          onReset()
+        }}
+        style={{ cursor: 'pointer' }}
       >
         <rect width={buttonWidth} height={buttonHeight} rx={999} fill="rgba(248,250,252,0.9)" />
         <text

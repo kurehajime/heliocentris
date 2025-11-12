@@ -4,6 +4,7 @@ import type {
   FallingField,
   FallingMinoState,
   FieldSize,
+  FixedField,
   GameConfig,
   GameState,
   GroundDragCommand,
@@ -115,9 +116,11 @@ export class GameManager {
       stats: createStats(),
       activeClear: null as LineClearEvent | null,
       lastTick: performance.now(),
+      fallingTimerMs: 0,
     }
 
-    return this.withFallingField(baseState)
+    const ensured = this.ensureFalling(baseState)
+    return this.withFallingField(ensured)
   }
 
   static tick(state: GameState, context: TickContext): GameState {
@@ -126,22 +129,31 @@ export class GameManager {
 
     if (state.phase === 'playing') {
       const ground = this.applyGroundDrag(state.ground, command)
-      const falling = this.syncFallingWithGround(state.falling, command?.deltaPx ?? 0)
-      nextState = { ...nextState, ground, falling }
+      nextState = { ...nextState, ground }
+      nextState = this.ensureFalling(nextState)
+
+      let accumulator = nextState.fallingTimerMs + context.deltaMs
+      const gravityMs = this.currentConfig.gravityMs
+      while (nextState.phase === 'playing' && accumulator >= gravityMs) {
+        nextState = this.stepFalling(nextState)
+        accumulator -= gravityMs
+      }
+      nextState = { ...nextState, fallingTimerMs: accumulator }
+    } else {
+      nextState = this.ensureFalling(nextState)
     }
 
-    nextState = this.ensureFalling(nextState)
     return this.withFallingField(nextState)
   }
 
   static applyInput(state: GameState, input: InputState): GameState {
+    let nextState = state
     if (input.lastCommand && state.phase === 'playing') {
       const ground = this.applyGroundDrag(state.ground, input.lastCommand)
-      const falling = this.syncFallingWithGround(state.falling, input.lastCommand.deltaPx)
-      const updated = this.ensureFalling({ ...state, ground, falling })
-      return this.withFallingField(updated)
+      nextState = { ...state, ground }
     }
-    return this.withFallingField(this.ensureFalling(state))
+    nextState = this.ensureFalling(nextState)
+    return this.withFallingField(nextState)
   }
 
   static start(state: GameState): GameState {
@@ -151,6 +163,7 @@ export class GameManager {
       phase: 'playing',
       stats: { ...ensured.stats, level: 1 },
       lastTick: performance.now(),
+      fallingTimerMs: 0,
     })
   }
 
@@ -174,14 +187,22 @@ export class GameManager {
   }
 
   private static ensureFalling(state: GameState): GameState {
+    if (state.phase === 'gameover') {
+      return { ...state, falling: null }
+    }
     if (state.falling) {
       return state
     }
 
     const queue = this.ensureQueue(state.queue)
     const [next, ...rest] = queue
+    const restQueue = this.ensureQueue(rest)
     const falling = this.createFallingMino(next)
-    return { ...state, queue: rest, falling }
+    const collided = this.detectCollision(falling, falling.anchor, state.fixedField)
+    if (collided) {
+      return { ...state, queue: restQueue, falling: null, phase: 'gameover' }
+    }
+    return { ...state, queue: restQueue, falling }
   }
 
   private static ensureQueue(queue: NextMinoQueue): NextMinoQueue {
@@ -226,27 +247,59 @@ export class GameManager {
     return { ...state, fallingField: this.composeFallingField(state) }
   }
 
-  private static syncFallingWithGround(
-    falling: FallingMinoState | null,
-    deltaPx: number
-  ): FallingMinoState | null {
-    if (!falling || deltaPx === 0) return falling
-    const config = this.currentConfig
-    const cellSize = config.cellSizePx
-    const rawOffset = falling.offsetPx.x + deltaPx
-    const cellShift =
-      Math.abs(rawOffset) >= cellSize ? Math.trunc(rawOffset / cellSize) : 0
-    const offsetPx = rawOffset - cellShift * cellSize
-    if (cellShift === 0) {
-      return { ...falling, offsetPx: { ...falling.offsetPx, x: offsetPx } }
+  private static stepFalling(state: GameState): GameState {
+    const falling = state.falling
+    if (!falling) return this.ensureFalling(state)
+    const nextAnchor = { x: falling.anchor.x, y: falling.anchor.y + 1 }
+    if (this.detectCollision(falling, nextAnchor, state.fixedField)) {
+      const lockedState = this.lockFalling(state)
+      return this.ensureFalling(lockedState)
     }
-    const width = config.fieldSize.width
-    const nextX = wrapIndex(falling.anchor.x + cellShift, width)
     return {
-      ...falling,
-      anchor: { ...falling.anchor, x: nextX },
-      offsetPx: { ...falling.offsetPx, x: offsetPx },
+      ...state,
+      falling: {
+        ...falling,
+        anchor: nextAnchor,
+        offsetPx: { ...falling.offsetPx, y: 0 },
+      },
     }
+  }
+
+  private static detectCollision(
+    falling: FallingMinoState,
+    anchor: { x: number; y: number },
+    fixedField: FixedField
+  ): boolean {
+    const size = getFieldSize(fixedField)
+    for (let y = 0; y < falling.cells.length; y += 1) {
+      for (let x = 0; x < falling.cells[y].length; x += 1) {
+        const cell = falling.cells[y][x]
+        if (cell.state === 'Empty') continue
+        const targetX = wrapIndex(anchor.x + x, size.width)
+        const targetY = anchor.y + y
+        if (targetY >= size.height) return true
+        if (targetY < 0) continue
+        if (fixedField[targetY][targetX].state !== 'Empty') return true
+      }
+    }
+    return false
+  }
+
+  private static lockFalling(state: GameState): GameState {
+    const falling = state.falling
+    if (!falling) return state
+    const size = getFieldSize(state.fixedField)
+    const nextField = state.fixedField.map((row) => row.map((cell) => ({ ...cell })))
+    falling.cells.forEach((row, y) =>
+      row.forEach((cell, x) => {
+        if (cell.state === 'Empty') return
+        const targetX = wrapIndex(falling.anchor.x + x, size.width)
+        const targetY = falling.anchor.y + y
+        if (targetY < 0 || targetY >= size.height) return
+        nextField[targetY][targetX] = { state: 'Fixed', color: cell.color } as Cell
+      })
+    )
+    return { ...state, fixedField: nextField, falling: null, fallingTimerMs: 0 }
   }
 }
 

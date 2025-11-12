@@ -87,6 +87,7 @@ export type GameState = {
   stats: GameStats
   activeClear: LineClearEvent | null
   lastTick: number
+  fallingTimerMs: number
 }
 
 export type PointerDrag = {
