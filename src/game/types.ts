@@ -34,6 +34,12 @@ export type MinoMap = Record<MinoType, Cell[][]>
 
 export type NextMinoQueue = MinoType[]
 
+export type ActiveMino = {
+  mino: MinoType
+  row: number
+  col: number
+} | null
+
 export type GameState = {
   fixedField: FixedField
   fallingField: FallingField
@@ -42,6 +48,7 @@ export type GameState = {
   score: number
   lines: number
   groundShift: number
+  activeMino: ActiveMino
 }
 
 export type FieldDimensions = {

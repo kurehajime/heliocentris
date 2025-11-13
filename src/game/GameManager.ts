@@ -1,8 +1,11 @@
 import { CELL_STATE, DEFAULT_FIELD_DIMENSIONS, MINO_TYPE } from './types'
 import type {
+  ActiveMino,
   Cell,
   CellState,
+  FallingField,
   FieldDimensions,
+  FixedField,
   GameState,
   MinoMap,
   MinoType,
@@ -70,25 +73,44 @@ export class GameManager {
     const dimensions = options?.dimensions ?? DEFAULT_FIELD_DIMENSIONS
     const queue = options?.queue ?? GameManager.createSeedQueue()
     const fixedField = GameManager.seedDemoBlock(GameManager.createEmptyField(dimensions), dimensions)
-    const fallingField = GameManager.createEmptyField(dimensions)
+    const baseState: GameState = {
+      fixedField,
+      fallingField: GameManager.composeFallingField(dimensions, null),
+      nextQueue: queue,
+      heldMino: null,
+      score: 0,
+      lines: 0,
+      groundShift: 0,
+      activeMino: null,
+    }
 
-    return new GameManager(
-      {
-        fixedField,
-        fallingField,
-        nextQueue: queue,
-        heldMino: null,
-        score: 0,
-        lines: 0,
-        groundShift: 0,
-      },
-      dimensions,
-    )
+    return GameManager.spawnActiveMino(new GameManager(baseState, dimensions))
   }
 
   static tick(manager: GameManager): GameManager {
-    // ひとまず状態変化は行わず、インターフェースのみ提供する
-    return new GameManager({ ...manager.state }, manager.dimensions)
+    const ensuredManager = manager.state.activeMino ? manager : GameManager.spawnActiveMino(manager)
+    const activeMino = ensuredManager.state.activeMino
+
+    if (!activeMino) {
+      return ensuredManager
+    }
+
+    const nextPosition = { ...activeMino, row: activeMino.row + 1 }
+
+    if (GameManager.canPlaceMino(nextPosition, ensuredManager.state.fixedField, ensuredManager.dimensions)) {
+      return GameManager.updateActiveMino(ensuredManager, nextPosition)
+    }
+
+    const mergedField = GameManager.mergeActiveIntoFixed(ensuredManager.state.fixedField, activeMino)
+    const mergedState: GameState = {
+      ...ensuredManager.state,
+      fixedField: mergedField,
+      activeMino: null,
+    }
+    mergedState.fallingField = GameManager.composeFallingField(ensuredManager.dimensions, mergedState.activeMino)
+
+    const settledManager = new GameManager(mergedState, ensuredManager.dimensions)
+    return GameManager.spawnActiveMino(settledManager)
   }
 
   static withNextQueue(manager: GameManager, queue: NextMinoQueue): GameManager {
@@ -113,14 +135,62 @@ export class GameManager {
     const shiftedField = GameManager.shiftField(manager.state.fixedField, normalizedDelta)
     const groundShift = GameManager.normalizeDelta(manager.state.groundShift + normalizedDelta, cols)
 
-    return new GameManager(
-      {
+    const nextState: GameState = {
+      ...manager.state,
+      fixedField: shiftedField,
+      groundShift,
+    }
+    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, nextState.activeMino)
+
+    return new GameManager(nextState, manager.dimensions)
+  }
+
+  private static updateActiveMino(manager: GameManager, activeMino: NonNullable<ActiveMino>): GameManager {
+    const nextState: GameState = {
+      ...manager.state,
+      activeMino,
+    }
+    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, activeMino)
+
+    return new GameManager(nextState, manager.dimensions)
+  }
+
+  private static spawnActiveMino(manager: GameManager): GameManager {
+    const { mino, queue } = GameManager.pullNextMino(manager.state.nextQueue)
+    const shape = MINO_MAP[mino]
+    const shapeWidth = shape[0]?.length ?? 0
+    const col = Math.max(Math.floor((manager.dimensions.cols - shapeWidth) / 2), 0)
+    const activeMino = {
+      mino,
+      row: 0,
+      col,
+    }
+
+    if (!GameManager.canPlaceMino(activeMino, manager.state.fixedField, manager.dimensions)) {
+      const nextState: GameState = {
         ...manager.state,
-        fixedField: shiftedField,
-        groundShift,
-      },
-      manager.dimensions,
-    )
+        nextQueue: queue,
+        activeMino: null,
+      }
+      nextState.fallingField = GameManager.composeFallingField(manager.dimensions, nextState.activeMino)
+      return new GameManager(nextState, manager.dimensions)
+    }
+
+    const nextState: GameState = {
+      ...manager.state,
+      nextQueue: queue,
+      activeMino,
+    }
+    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, activeMino)
+    return new GameManager(nextState, manager.dimensions)
+  }
+
+  private static pullNextMino(queue: NextMinoQueue): { mino: MinoType; queue: NextMinoQueue } {
+    const sourceQueue = queue.length === 0 ? GameManager.createSeedQueue() : queue
+    const [mino, ...rest] = sourceQueue
+    const nextQueue = rest.length > 0 ? [...rest, mino] : [mino]
+
+    return { mino, queue: nextQueue }
   }
 
   static createEmptyField(dimensions: FieldDimensions, state: CellState = CELL_STATE.Empty): Cell[][] {
@@ -166,6 +236,85 @@ export class GameManager {
     return paddedField
   }
 
+  private static composeFallingField(dimensions: FieldDimensions, activeMino: ActiveMino): FallingField {
+    const field = GameManager.createEmptyField(dimensions, CELL_STATE.Empty)
+
+    if (!activeMino) {
+      return field
+    }
+
+    const shape = MINO_MAP[activeMino.mino]
+    shape.forEach((row, dy) => {
+      row.forEach((cell, dx) => {
+        if (cell.state === CELL_STATE.Empty) {
+          return
+        }
+
+        const targetRow = activeMino.row + dy
+        const targetCol = activeMino.col + dx
+
+        if (targetRow < 0 || targetRow >= dimensions.rows || targetCol < 0 || targetCol >= dimensions.cols) {
+          return
+        }
+
+        field[targetRow][targetCol] = cloneCell(cell, CELL_STATE.Falling)
+      })
+    })
+
+    return field
+  }
+
+  private static canPlaceMino(activeMino: ActiveMino, fixedField: FixedField, dimensions: FieldDimensions): boolean {
+    if (!activeMino) {
+      return false
+    }
+
+    const shape = MINO_MAP[activeMino.mino]
+
+    return shape.every((row, dy) =>
+      row.every((cell, dx) => {
+        if (cell.state === CELL_STATE.Empty) {
+          return true
+        }
+
+        const targetRow = activeMino.row + dy
+        const targetCol = activeMino.col + dx
+
+        if (targetRow < 0 || targetRow >= dimensions.rows || targetCol < 0 || targetCol >= dimensions.cols) {
+          return false
+        }
+
+        const fixedCell = fixedField[targetRow]?.[targetCol]
+        return fixedCell?.state === CELL_STATE.Empty
+      }),
+    )
+  }
+
+  private static mergeActiveIntoFixed(fixedField: FixedField, activeMino: ActiveMino): FixedField {
+    if (!activeMino) {
+      return fixedField
+    }
+
+    const shape = MINO_MAP[activeMino.mino]
+    const nextField = fixedField.map((row) => row.map((cell) => ({ ...cell })))
+
+    shape.forEach((row, dy) => {
+      row.forEach((cell, dx) => {
+        if (cell.state === CELL_STATE.Empty) {
+          return
+        }
+
+        const targetRow = activeMino.row + dy
+        const targetCol = activeMino.col + dx
+        if (nextField[targetRow]?.[targetCol]) {
+          nextField[targetRow][targetCol] = cloneCell(cell, CELL_STATE.Fixed)
+        }
+      })
+    })
+
+    return nextField
+  }
+
   private static shiftField(field: Cell[][], delta: number): Cell[][] {
     if (field.length === 0) {
       return field
@@ -203,5 +352,12 @@ function createEmptyCell(): Cell {
   return {
     color: 'transparent',
     state: CELL_STATE.Empty,
+  }
+}
+
+function cloneCell(cell: Cell, stateOverride?: CellState): Cell {
+  return {
+    color: cell.color,
+    state: stateOverride ?? cell.state,
   }
 }

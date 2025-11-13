@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { GameManager } from '../game/GameManager'
@@ -8,6 +8,7 @@ const FIELD_CELL_SIZE = 18
 const SIDEBAR_WIDTH = 140
 const HORIZONTAL_GAP = 32
 const VIEWBOX_PADDING = 32
+const FALL_INTERVAL_MS = 800
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
@@ -16,6 +17,8 @@ export function GameElement() {
     startX: 0,
     appliedDelta: 0,
   })
+  const frameRef = useRef<number | null>(null)
+  const lastTickTimeRef = useRef<number | null>(null)
 
   const handleTick = useCallback(() => {
     setManager((current) => GameManager.tick(current))
@@ -27,6 +30,10 @@ export function GameElement() {
     }
 
     setManager((current) => GameManager.shiftGroundByCells(current, deltaCells))
+  }, [])
+
+  const advanceTick = useCallback(() => {
+    setManager((current) => GameManager.tick(current))
   }, [])
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
@@ -73,6 +80,32 @@ export function GameElement() {
   const { cols, rows } = manager.dimensions
 
   const layout = useMemo(() => computeLayout({ cols, rows }), [cols, rows])
+
+  useEffect(() => {
+    const loop = (timestamp: number) => {
+      if (lastTickTimeRef.current == null) {
+        lastTickTimeRef.current = timestamp
+      }
+
+      const delta = timestamp - lastTickTimeRef.current
+      if (delta >= FALL_INTERVAL_MS) {
+        advanceTick()
+        lastTickTimeRef.current = timestamp
+      }
+
+      frameRef.current = requestAnimationFrame(loop)
+    }
+
+    frameRef.current = requestAnimationFrame(loop)
+
+    return () => {
+      if (frameRef.current != null) {
+        cancelAnimationFrame(frameRef.current)
+      }
+      frameRef.current = null
+      lastTickTimeRef.current = null
+    }
+  }, [advanceTick])
 
   return (
     <svg
