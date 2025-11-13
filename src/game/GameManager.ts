@@ -75,7 +75,7 @@ export class GameManager {
     const fixedField = GameManager.seedDemoBlock(GameManager.createEmptyField(dimensions), dimensions)
     const baseState: GameState = {
       fixedField,
-      fallingField: GameManager.composeFallingField(dimensions, null),
+      fallingField: GameManager.composeFallingField(dimensions, null, fixedField),
       nextQueue: queue,
       heldMino: null,
       score: 0,
@@ -107,7 +107,11 @@ export class GameManager {
       fixedField: mergedField,
       activeMino: null,
     }
-    mergedState.fallingField = GameManager.composeFallingField(ensuredManager.dimensions, mergedState.activeMino)
+    mergedState.fallingField = GameManager.composeFallingField(
+      ensuredManager.dimensions,
+      mergedState.activeMino,
+      mergedState.fixedField,
+    )
 
     const settledManager = new GameManager(mergedState, ensuredManager.dimensions)
     return GameManager.spawnActiveMino(settledManager)
@@ -152,7 +156,11 @@ export class GameManager {
       }
 
       tentativeState = pushedState
-      tentativeState.fallingField = GameManager.composeFallingField(currentManager.dimensions, tentativeState.activeMino)
+      tentativeState.fallingField = GameManager.composeFallingField(
+        currentManager.dimensions,
+        tentativeState.activeMino,
+        tentativeState.fixedField,
+      )
       currentManager = new GameManager(tentativeState, currentManager.dimensions)
       remaining -= step
     }
@@ -165,7 +173,7 @@ export class GameManager {
       ...manager.state,
       activeMino,
     }
-    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, activeMino)
+    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, activeMino, nextState.fixedField)
 
     return new GameManager(nextState, manager.dimensions)
   }
@@ -187,7 +195,11 @@ export class GameManager {
         nextQueue: queue,
         activeMino: null,
       }
-      nextState.fallingField = GameManager.composeFallingField(manager.dimensions, nextState.activeMino)
+      nextState.fallingField = GameManager.composeFallingField(
+        manager.dimensions,
+        nextState.activeMino,
+        nextState.fixedField,
+      )
       return new GameManager(nextState, manager.dimensions)
     }
 
@@ -196,7 +208,7 @@ export class GameManager {
       nextQueue: queue,
       activeMino,
     }
-    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, activeMino)
+    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, activeMino, nextState.fixedField)
     return new GameManager(nextState, manager.dimensions)
   }
 
@@ -251,13 +263,57 @@ export class GameManager {
     return paddedField
   }
 
-  private static composeFallingField(dimensions: FieldDimensions, activeMino: ActiveMino): FallingField {
+  private static composeFallingField(
+    dimensions: FieldDimensions,
+    activeMino: ActiveMino,
+    fixedField: FixedField,
+  ): FallingField {
     const field = GameManager.createEmptyField(dimensions, CELL_STATE.Empty)
 
     if (!activeMino) {
       return field
     }
 
+    const solidActive = activeMino as NonNullable<ActiveMino>
+    const ghostMino = GameManager.findGhostMino(solidActive, fixedField, dimensions)
+    GameManager.paintMinoOnField(field, ghostMino, CELL_STATE.Ghost, dimensions)
+    GameManager.paintMinoOnField(field, solidActive, CELL_STATE.Falling, dimensions)
+
+    return field
+  }
+
+  private static findGhostMino(
+    activeMino: NonNullable<ActiveMino>,
+    fixedField: FixedField,
+    dimensions: FieldDimensions,
+  ): NonNullable<ActiveMino> {
+    let ghostRow = activeMino.row
+
+    while (true) {
+      const candidate: NonNullable<ActiveMino> = {
+        ...activeMino,
+        row: ghostRow + 1,
+      }
+
+      if (!GameManager.canPlaceMino(candidate, fixedField, dimensions)) {
+        break
+      }
+
+      ghostRow += 1
+    }
+
+    return {
+      ...activeMino,
+      row: ghostRow,
+    }
+  }
+
+  private static paintMinoOnField(
+    field: FallingField,
+    activeMino: NonNullable<ActiveMino>,
+    state: CellState,
+    dimensions: FieldDimensions,
+  ): void {
     const shape = MINO_MAP[activeMino.mino]
     shape.forEach((row, dy) => {
       row.forEach((cell, dx) => {
@@ -272,11 +328,9 @@ export class GameManager {
           return
         }
 
-        field[targetRow][targetCol] = cloneCell(cell, CELL_STATE.Falling)
+        field[targetRow][targetCol] = cloneCell(cell, state)
       })
     })
-
-    return field
   }
 
   private static canPlaceMino(activeMino: ActiveMino, fixedField: FixedField, dimensions: FieldDimensions): boolean {

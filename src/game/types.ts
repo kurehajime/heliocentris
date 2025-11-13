@@ -1,5 +1,6 @@
 export const CELL_STATE = {
   Empty: 'Empty',
+  Ghost: 'Ghost',
   Falling: 'Falling',
   Fixing: 'Fixing',
   Fixed: 'Fixed',
