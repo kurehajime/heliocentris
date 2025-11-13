@@ -27,6 +27,8 @@ const createSolidCell = (mino: MinoType): Cell => ({
   state: CELL_STATE.Falling,
 })
 
+const CLEAR_DELAY_TICKS = 1
+
 export const MINO_MAP: MinoMap = {
   [MINO_TYPE.I]: [
     [createSolidCell(MINO_TYPE.I), createSolidCell(MINO_TYPE.I), createSolidCell(MINO_TYPE.I), createSolidCell(MINO_TYPE.I)],
@@ -82,12 +84,18 @@ export class GameManager {
       lines: 0,
       groundShift: 0,
       activeMino: null,
+      clearingRows: [],
+      clearCountdown: 0,
     }
 
     return GameManager.spawnActiveMino(new GameManager(baseState, dimensions))
   }
 
   static tick(manager: GameManager): GameManager {
+    if (manager.state.clearingRows.length > 0) {
+      return GameManager.progressClearing(manager)
+    }
+
     const ensuredManager = manager.state.activeMino ? manager : GameManager.spawnActiveMino(manager)
     const activeMino = ensuredManager.state.activeMino
 
@@ -102,6 +110,25 @@ export class GameManager {
     }
 
     const mergedField = GameManager.mergeActiveIntoFixed(ensuredManager.state.fixedField, activeMino)
+    const { field: fieldWithMarks, rows } = GameManager.markDeletingRows(mergedField)
+
+    if (rows.length > 0) {
+      const clearingState: GameState = {
+        ...ensuredManager.state,
+        fixedField: fieldWithMarks,
+        activeMino: null,
+        clearingRows: rows,
+        clearCountdown: CLEAR_DELAY_TICKS,
+      }
+      clearingState.fallingField = GameManager.composeFallingField(
+        ensuredManager.dimensions,
+        clearingState.activeMino,
+        clearingState.fixedField,
+      )
+
+      return new GameManager(clearingState, ensuredManager.dimensions)
+    }
+
     const mergedState: GameState = {
       ...ensuredManager.state,
       fixedField: mergedField,
@@ -169,7 +196,7 @@ export class GameManager {
   }
 
   static dropActiveMino(manager: GameManager, deltaCells: number): GameManager {
-    if (deltaCells <= 0 || !manager.state.activeMino) {
+    if (deltaCells <= 0 || !manager.state.activeMino || manager.state.clearingRows.length > 0) {
       return manager
     }
 
@@ -187,6 +214,38 @@ export class GameManager {
     }
 
     return GameManager.updateActiveMino(manager, nextActive)
+  }
+
+  private static progressClearing(manager: GameManager): GameManager {
+    if (manager.state.clearingRows.length === 0) {
+      return manager
+    }
+
+    if (manager.state.clearCountdown > 1) {
+      const nextState: GameState = {
+        ...manager.state,
+        clearCountdown: manager.state.clearCountdown - 1,
+      }
+      return new GameManager(nextState, manager.dimensions)
+    }
+
+    const clearedField = GameManager.compactAfterClearing(
+      manager.state.fixedField,
+      manager.state.clearingRows,
+    )
+    const clearedState: GameState = {
+      ...manager.state,
+      fixedField: clearedField,
+      clearingRows: [],
+      clearCountdown: 0,
+    }
+    clearedState.fallingField = GameManager.composeFallingField(
+      manager.dimensions,
+      clearedState.activeMino,
+      clearedState.fixedField,
+    )
+
+    return GameManager.spawnActiveMino(new GameManager(clearedState, manager.dimensions))
   }
 
   private static updateActiveMino(manager: GameManager, activeMino: NonNullable<ActiveMino>): GameManager {
@@ -403,6 +462,48 @@ export class GameManager {
     })
 
     return nextField
+  }
+
+  private static markDeletingRows(field: FixedField): { field: FixedField; rows: number[] } {
+    const rows: number[] = []
+
+    field.forEach((row, rowIndex) => {
+      if (row.every((cell) => cell.state === CELL_STATE.Fixed)) {
+        rows.push(rowIndex)
+      }
+    })
+
+    if (rows.length === 0) {
+      return { field, rows }
+    }
+
+    const rowSet = new Set(rows)
+    const nextField = field.map((row, rowIndex) => {
+      if (!rowSet.has(rowIndex)) {
+        return row
+      }
+
+      return row.map(() => ({
+        color: '#ffffff',
+        state: CELL_STATE.Deleting,
+      }))
+    })
+
+    return { field: nextField, rows }
+  }
+
+  private static compactAfterClearing(field: FixedField, rows: number[]): FixedField {
+    if (rows.length === 0) {
+      return field
+    }
+
+    const rowSet = new Set(rows)
+    const remainingRows = field.filter((_, idx) => !rowSet.has(idx))
+    const emptyRow = field[0]?.map(() => ({ color: '#222', state: CELL_STATE.Empty })) ?? []
+    const clearedCount = rows.length
+    const paddingRows = Array.from({ length: clearedCount }, () => emptyRow.map((cell) => ({ ...cell })))
+
+    return [...paddingRows, ...remainingRows]
   }
 
   private static pushActiveMinoWithResult(

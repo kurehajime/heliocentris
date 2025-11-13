@@ -50,6 +50,8 @@ export type GameState = {
   lines: number
   groundShift: number
   activeMino: ActiveMino
+  clearingRows: number[]
+  clearCountdown: number
 }
 
 export type FieldDimensions = {

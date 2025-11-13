@@ -14,7 +14,7 @@ const stateToOpacity: Record<CellState, number> = {
   [CELL_STATE.Falling]: 1,
   [CELL_STATE.Fixing]: 0.85,
   [CELL_STATE.Fixed]: 1,
-  [CELL_STATE.Deleting]: 0.5,
+  [CELL_STATE.Deleting]: 1,
 }
 
 export function BlockElement({ cell, x, y, size }: BlockElementProps) {
