@@ -39,6 +39,7 @@ export type ActiveMino = {
   mino: MinoType
   row: number
   col: number
+  rotation: number
 } | null
 
 export type GameState = {

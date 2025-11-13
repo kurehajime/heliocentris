@@ -260,13 +260,15 @@ export class GameManager {
 
   private static spawnActiveMino(manager: GameManager): GameManager {
     const { mino, queue } = GameManager.pullNextMino(manager.state.nextQueue)
-    const shape = MINO_MAP[mino]
+    const rotation = GameManager.randomRotation()
+    const shape = GameManager.getShapeFor(mino, rotation)
     const shapeWidth = shape[0]?.length ?? 0
     const col = Math.max(Math.floor((manager.dimensions.cols - shapeWidth) / 2), 0)
     const activeMino = {
       mino,
       row: 0,
       col,
+      rotation,
     }
 
     if (!GameManager.canPlaceMino(activeMino, manager.state.fixedField, manager.dimensions)) {
@@ -394,7 +396,7 @@ export class GameManager {
     state: CellState,
     dimensions: FieldDimensions,
   ): void {
-    const shape = MINO_MAP[activeMino.mino]
+    const shape = GameManager.getShapeFor(activeMino.mino, activeMino.rotation)
     shape.forEach((row, dy) => {
       row.forEach((cell, dx) => {
         if (cell.state === CELL_STATE.Empty) {
@@ -418,7 +420,7 @@ export class GameManager {
       return false
     }
 
-    const shape = MINO_MAP[activeMino.mino]
+    const shape = GameManager.getShapeFor(activeMino.mino, activeMino.rotation)
 
     return shape.every((row, dy) =>
       row.every((cell, dx) => {
@@ -444,7 +446,7 @@ export class GameManager {
       return fixedField
     }
 
-    const shape = MINO_MAP[activeMino.mino]
+    const shape = GameManager.getShapeFor(activeMino.mino, activeMino.rotation)
     const nextField = fixedField.map((row) => row.map((cell) => ({ ...cell })))
 
     shape.forEach((row, dy) => {
@@ -543,6 +545,40 @@ export class GameManager {
     }
 
     return { state, resolved: false }
+  }
+
+  private static getShapeFor(mino: MinoType, rotation: number): Cell[][] {
+    const baseShape = MINO_MAP[mino]
+    let shape = baseShape.map((row) => row.map((cell) => cloneCell(cell)))
+    const normalized = GameManager.normalizeRotation(rotation)
+
+    for (let i = 0; i < normalized; i += 1) {
+      shape = GameManager.rotateShape(shape)
+    }
+
+    return shape
+  }
+
+  private static rotateShape(shape: Cell[][]): Cell[][] {
+    const rows = shape.length
+    const cols = shape[0]?.length ?? 0
+
+    if (rows === 0 || cols === 0) {
+      return shape.map((row) => row.map((cell) => cloneCell(cell)))
+    }
+
+    return Array.from({ length: cols }, (_, y) =>
+      Array.from({ length: rows }, (_, x) => cloneCell(shape[rows - 1 - x][y])),
+    )
+  }
+
+  private static normalizeRotation(rotation: number): number {
+    const normalized = rotation % 4
+    return normalized < 0 ? normalized + 4 : normalized
+  }
+
+  private static randomRotation(): number {
+    return Math.floor(Math.random() * 4)
   }
 
   private static shiftField(field: Cell[][], delta: number): Cell[][] {
