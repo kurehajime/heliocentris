@@ -127,24 +127,37 @@ export class GameManager {
       return manager
     }
 
-    const normalizedDelta = GameManager.normalizeDelta(deltaCells, cols)
-    if (normalizedDelta === 0) {
-      return manager
+    let remaining = deltaCells
+    let currentManager = manager
+
+    while (remaining !== 0) {
+      const step = remaining > 0 ? 1 : -1
+      const shiftedField = GameManager.shiftField(currentManager.state.fixedField, step)
+      const groundShift = GameManager.normalizeDelta(currentManager.state.groundShift + step, cols)
+
+      let tentativeState: GameState = {
+        ...currentManager.state,
+        fixedField: shiftedField,
+        groundShift,
+      }
+
+      const { state: pushedState, resolved } = GameManager.pushActiveMinoWithResult(
+        tentativeState,
+        step,
+        currentManager.dimensions,
+      )
+
+      if (!resolved) {
+        break
+      }
+
+      tentativeState = pushedState
+      tentativeState.fallingField = GameManager.composeFallingField(currentManager.dimensions, tentativeState.activeMino)
+      currentManager = new GameManager(tentativeState, currentManager.dimensions)
+      remaining -= step
     }
-    const direction = deltaCells > 0 ? 1 : -1
 
-    const shiftedField = GameManager.shiftField(manager.state.fixedField, normalizedDelta)
-    const groundShift = GameManager.normalizeDelta(manager.state.groundShift + normalizedDelta, cols)
-
-    let nextState: GameState = {
-      ...manager.state,
-      fixedField: shiftedField,
-      groundShift,
-    }
-    nextState = GameManager.pushActiveMinoIfNeeded(nextState, direction, manager.dimensions)
-    nextState.fallingField = GameManager.composeFallingField(manager.dimensions, nextState.activeMino)
-
-    return new GameManager(nextState, manager.dimensions)
+    return currentManager
   }
 
   private static updateActiveMino(manager: GameManager, activeMino: NonNullable<ActiveMino>): GameManager {
@@ -317,13 +330,17 @@ export class GameManager {
     return nextField
   }
 
-  private static pushActiveMinoIfNeeded(state: GameState, direction: number, dimensions: FieldDimensions): GameState {
+  private static pushActiveMinoWithResult(
+    state: GameState,
+    direction: number,
+    dimensions: FieldDimensions,
+  ): { state: GameState; resolved: boolean } {
     if (!state.activeMino || direction === 0) {
-      return state
+      return { state, resolved: true }
     }
 
     if (GameManager.canPlaceMino(state.activeMino, state.fixedField, dimensions)) {
-      return state
+      return { state, resolved: true }
     }
 
     let candidate = state.activeMino
@@ -332,21 +349,24 @@ export class GameManager {
     for (let step = 0; step < maxSteps; step += 1) {
       const nextCol = candidate.col + direction
       if (nextCol < 0 || nextCol >= dimensions.cols) {
-        break
+        return { state, resolved: false }
       }
 
       const nextMino = { ...candidate, col: nextCol }
       if (GameManager.canPlaceMino(nextMino, state.fixedField, dimensions)) {
         return {
-          ...state,
-          activeMino: nextMino,
+          state: {
+            ...state,
+            activeMino: nextMino,
+          },
+          resolved: true,
         }
       }
 
       candidate = nextMino
     }
 
-    return state
+    return { state, resolved: false }
   }
 
   private static shiftField(field: Cell[][], delta: number): Cell[][] {
