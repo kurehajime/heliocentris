@@ -59,6 +59,22 @@ export const MINO_MAP: MinoMap = {
   ],
 }
 
+const BAG_MINOS: MinoType[] = [
+  MINO_TYPE.I,
+  MINO_TYPE.O,
+  MINO_TYPE.T,
+  MINO_TYPE.S,
+  MINO_TYPE.Z,
+  MINO_TYPE.J,
+  MINO_TYPE.L,
+]
+
+const BAG_SIZE = BAG_MINOS.length
+const LINE_CLEAR_WEIGHT = 120
+const HOLE_WEIGHT = 45
+const SURFACE_WEIGHT = 4
+const HEIGHT_WEIGHT = 1
+
 export class GameManager {
   public readonly state: GameState
   public readonly dimensions: FieldDimensions
@@ -259,8 +275,7 @@ export class GameManager {
   }
 
   private static spawnActiveMino(manager: GameManager): GameManager {
-    const { mino, queue } = GameManager.pullNextMino(manager.state.nextQueue)
-    const rotation = GameManager.randomRotation()
+    const { mino, rotation, queue } = GameManager.selectBestMino(manager, manager.state.nextQueue)
     const shape = GameManager.getShapeFor(mino, rotation)
     const shapeWidth = shape[0]?.length ?? 0
     const col = Math.max(Math.floor((manager.dimensions.cols - shapeWidth) / 2), 0)
@@ -294,14 +309,6 @@ export class GameManager {
     return new GameManager(nextState, manager.dimensions)
   }
 
-  private static pullNextMino(queue: NextMinoQueue): { mino: MinoType; queue: NextMinoQueue } {
-    const sourceQueue = queue.length === 0 ? GameManager.createSeedQueue() : queue
-    const [mino, ...rest] = sourceQueue
-    const nextQueue = rest.length > 0 ? [...rest, mino] : [mino]
-
-    return { mino, queue: nextQueue }
-  }
-
   static createEmptyField(dimensions: FieldDimensions, state: CellState = CELL_STATE.Empty): Cell[][] {
     return Array.from({ length: dimensions.rows }, () =>
       Array.from({ length: dimensions.cols }, () => ({
@@ -312,15 +319,7 @@ export class GameManager {
   }
 
   private static createSeedQueue(): NextMinoQueue {
-    return [
-      MINO_TYPE.I,
-      MINO_TYPE.O,
-      MINO_TYPE.T,
-      MINO_TYPE.S,
-      MINO_TYPE.Z,
-      MINO_TYPE.J,
-      MINO_TYPE.L,
-    ]
+    return GameManager.createShuffledBag()
   }
 
   private static seedDemoBlock(field: Cell[][], dimensions: FieldDimensions): Cell[][] {
@@ -421,24 +420,7 @@ export class GameManager {
     }
 
     const shape = GameManager.getShapeFor(activeMino.mino, activeMino.rotation)
-
-    return shape.every((row, dy) =>
-      row.every((cell, dx) => {
-        if (cell.state === CELL_STATE.Empty) {
-          return true
-        }
-
-        const targetRow = activeMino.row + dy
-        const targetCol = activeMino.col + dx
-
-        if (targetRow < 0 || targetRow >= dimensions.rows || targetCol < 0 || targetCol >= dimensions.cols) {
-          return false
-        }
-
-        const fixedCell = fixedField[targetRow]?.[targetCol]
-        return fixedCell?.state === CELL_STATE.Empty
-      }),
-    )
+    return GameManager.canPlaceShape(shape, activeMino.row, activeMino.col, fixedField, dimensions)
   }
 
   private static mergeActiveIntoFixed(fixedField: FixedField, activeMino: ActiveMino): FixedField {
@@ -547,6 +529,216 @@ export class GameManager {
     return { state, resolved: false }
   }
 
+  private static ensureBag(queue: NextMinoQueue): NextMinoQueue {
+    let nextQueue = queue.slice()
+    while (nextQueue.length < BAG_SIZE) {
+      nextQueue = nextQueue.concat(GameManager.createShuffledBag())
+    }
+    return nextQueue
+  }
+
+  private static createShuffledBag(): NextMinoQueue {
+    const bag = BAG_MINOS.slice()
+    for (let i = bag.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[bag[i], bag[j]] = [bag[j], bag[i]]
+    }
+    return bag
+  }
+
+  private static selectBestMino(
+    manager: GameManager,
+    queue: NextMinoQueue,
+  ): { mino: MinoType; rotation: number; queue: NextMinoQueue } {
+    const ensuredQueue = GameManager.ensureBag(queue)
+    const bag = ensuredQueue.slice(0, BAG_SIZE)
+    const field = manager.state.fixedField
+    const dims = manager.dimensions
+
+    let bestScore = Number.NEGATIVE_INFINITY
+    let bestRotation = 0
+    let bestIndex = 0
+
+    bag.forEach((mino, index) => {
+      const { score, rotation } = GameManager.evaluateMinoCandidate(field, dims, mino)
+      if (score > bestScore) {
+        bestScore = score
+        bestRotation = rotation
+        bestIndex = index
+      }
+    })
+
+    const selectedMino = bag[bestIndex]
+    const remainingQueue = ensuredQueue.filter((_, idx) => idx !== bestIndex)
+    const replenishedQueue = GameManager.ensureBag(remainingQueue)
+
+    return { mino: selectedMino, rotation: bestRotation, queue: replenishedQueue }
+  }
+
+  private static evaluateMinoCandidate(
+    field: FixedField,
+    dimensions: FieldDimensions,
+    mino: MinoType,
+  ): { score: number; rotation: number } {
+    let bestScore = Number.NEGATIVE_INFINITY
+    let bestRotation = 0
+
+    for (let rotation = 0; rotation < 4; rotation += 1) {
+      const shape = GameManager.getShapeFor(mino, rotation)
+      const shapeWidth = shape[0]?.length ?? 0
+      const shapeHeight = shape.length
+      if (shapeWidth === 0 || shapeHeight === 0 || shapeWidth > dimensions.cols) {
+        continue
+      }
+
+      for (let col = 0; col <= dimensions.cols - shapeWidth; col += 1) {
+        const landingRow = GameManager.findLandingRow(shape, col, field, dimensions)
+        if (landingRow === null) {
+          continue
+        }
+
+        const mergedField = GameManager.mergeShapeOntoField(field, shape, landingRow, col)
+        const score = GameManager.evaluateField(mergedField)
+        if (score > bestScore) {
+          bestScore = score
+          bestRotation = rotation
+        }
+      }
+    }
+
+    if (bestScore === Number.NEGATIVE_INFINITY) {
+      return { score: Number.NEGATIVE_INFINITY, rotation: 0 }
+    }
+
+    return { score: bestScore, rotation: bestRotation }
+  }
+
+  private static findLandingRow(
+    shape: Cell[][],
+    col: number,
+    field: FixedField,
+    dimensions: FieldDimensions,
+  ): number | null {
+    if (!GameManager.canPlaceShape(shape, 0, col, field, dimensions)) {
+      return null
+    }
+
+    let row = 0
+    while (GameManager.canPlaceShape(shape, row + 1, col, field, dimensions)) {
+      row += 1
+    }
+
+    return row
+  }
+
+  private static mergeShapeOntoField(
+    field: FixedField,
+    shape: Cell[][],
+    row: number,
+    col: number,
+  ): FixedField {
+    const nextField = field.map((r) => r.map((cell) => ({ ...cell })))
+
+    shape.forEach((shapeRow, dy) => {
+      shapeRow.forEach((cell, dx) => {
+        if (cell.state === CELL_STATE.Empty) {
+          return
+        }
+
+        const targetRow = row + dy
+        const targetCol = col + dx
+        if (nextField[targetRow]?.[targetCol]) {
+          nextField[targetRow][targetCol] = cloneCell(cell, CELL_STATE.Fixed)
+        }
+      })
+    })
+
+    return nextField
+  }
+
+  private static evaluateField(field: FixedField): number {
+    const rows = field.length
+    const cols = field[0]?.length ?? 0
+    if (rows === 0 || cols === 0) {
+      return 0
+    }
+
+    let linesCleared = 0
+    const heights = new Array<number>(cols).fill(0)
+    let holes = 0
+
+    field.forEach((row) => {
+      if (row.every((cell) => cell.state !== CELL_STATE.Empty)) {
+        linesCleared += 1
+      }
+    })
+
+    for (let col = 0; col < cols; col += 1) {
+      let blockSeen = false
+      let columnHeight = 0
+      let columnHoles = 0
+      for (let row = 0; row < rows; row += 1) {
+        const cell = field[row][col]
+        if (cell.state !== CELL_STATE.Empty) {
+          if (!blockSeen) {
+            columnHeight = rows - row
+            blockSeen = true
+          }
+        } else if (blockSeen) {
+          columnHoles += 1
+        }
+      }
+      heights[col] = columnHeight
+      holes += columnHoles
+    }
+
+    let surface = 0
+    for (let col = 0; col < cols - 1; col += 1) {
+      surface += Math.abs(heights[col] - heights[col + 1])
+    }
+
+    const totalHeight = heights.reduce((sum, h) => sum + h, 0)
+
+    const score =
+      linesCleared * linesCleared * LINE_CLEAR_WEIGHT -
+      holes * HOLE_WEIGHT -
+      surface * SURFACE_WEIGHT -
+      totalHeight * HEIGHT_WEIGHT
+
+    return score
+  }
+
+  private static canPlaceShape(
+    shape: Cell[][],
+    row: number,
+    col: number,
+    field: FixedField,
+    dimensions: FieldDimensions,
+  ): boolean {
+    return shape.every((shapeRow, dy) =>
+      shapeRow.every((cell, dx) => {
+        if (cell.state === CELL_STATE.Empty) {
+          return true
+        }
+
+        const targetRow = row + dy
+        const targetCol = col + dx
+
+        if (
+          targetRow < 0 ||
+          targetRow >= dimensions.rows ||
+          targetCol < 0 ||
+          targetCol >= dimensions.cols
+        ) {
+          return false
+        }
+
+        const fixedCell = field[targetRow]?.[targetCol]
+        return fixedCell?.state === CELL_STATE.Empty
+      }),
+    )
+  }
+
   private static getShapeFor(mino: MinoType, rotation: number): Cell[][] {
     const baseShape = MINO_MAP[mino]
     let shape = baseShape.map((row) => row.map((cell) => cloneCell(cell)))
@@ -575,10 +767,6 @@ export class GameManager {
   private static normalizeRotation(rotation: number): number {
     const normalized = rotation % 4
     return normalized < 0 ? normalized + 4 : normalized
-  }
-
-  private static randomRotation(): number {
-    return Math.floor(Math.random() * 4)
   }
 
   private static shiftField(field: Cell[][], delta: number): Cell[][] {
