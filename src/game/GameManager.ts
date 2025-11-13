@@ -80,6 +80,7 @@ export class GameManager {
         heldMino: null,
         score: 0,
         lines: 0,
+        groundShift: 0,
       },
       dimensions,
     )
@@ -96,6 +97,30 @@ export class GameManager {
 
   static withHeldMino(manager: GameManager, heldMino: MinoType | null): GameManager {
     return new GameManager({ ...manager.state, heldMino }, manager.dimensions)
+  }
+
+  static shiftGroundByCells(manager: GameManager, deltaCells: number): GameManager {
+    const cols = manager.dimensions.cols
+    if (cols === 0 || deltaCells === 0) {
+      return manager
+    }
+
+    const normalizedDelta = GameManager.normalizeDelta(deltaCells, cols)
+    if (normalizedDelta === 0) {
+      return manager
+    }
+
+    const shiftedField = GameManager.shiftField(manager.state.fixedField, normalizedDelta)
+    const groundShift = GameManager.normalizeDelta(manager.state.groundShift + normalizedDelta, cols)
+
+    return new GameManager(
+      {
+        ...manager.state,
+        fixedField: shiftedField,
+        groundShift,
+      },
+      manager.dimensions,
+    )
   }
 
   static createEmptyField(dimensions: FieldDimensions, state: CellState = CELL_STATE.Empty): Cell[][] {
@@ -139,6 +164,38 @@ export class GameManager {
     }
 
     return paddedField
+  }
+
+  private static shiftField(field: Cell[][], delta: number): Cell[][] {
+    if (field.length === 0) {
+      return field
+    }
+
+    const cols = field[0]?.length ?? 0
+    if (cols === 0) {
+      return field
+    }
+
+    const normalizedDelta = GameManager.normalizeDelta(delta, cols)
+    if (normalizedDelta === 0) {
+      return field
+    }
+
+    return field.map((row) =>
+      row.map((_, x) => {
+        const sourceIndex = (x - normalizedDelta + cols) % cols
+        return row[sourceIndex]
+      }),
+    )
+  }
+
+  private static normalizeDelta(delta: number, modulus: number): number {
+    if (modulus === 0) {
+      return 0
+    }
+
+    const normalized = delta % modulus
+    return normalized < 0 ? normalized + modulus : normalized
   }
 }
 

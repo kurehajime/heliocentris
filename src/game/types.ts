@@ -41,6 +41,7 @@ export type GameState = {
   heldMino: MinoType | null
   score: number
   lines: number
+  groundShift: number
 }
 
 export type FieldDimensions = {

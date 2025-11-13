@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { GameManager } from '../game/GameManager'
 import { FieldElement } from './FieldElement'
@@ -10,9 +11,62 @@ const VIEWBOX_PADDING = 32
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
+  const dragState = useRef<{ pointerId: number | null; startX: number; appliedDelta: number }>({
+    pointerId: null,
+    startX: 0,
+    appliedDelta: 0,
+  })
 
   const handleTick = useCallback(() => {
     setManager((current) => GameManager.tick(current))
+  }, [])
+
+  const applyGroundShift = useCallback((deltaCells: number) => {
+    if (deltaCells === 0) {
+      return
+    }
+
+    setManager((current) => GameManager.shiftGroundByCells(current, deltaCells))
+  }, [])
+
+  const handlePointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragState.current.pointerId = event.pointerId
+    dragState.current.startX = event.clientX
+    dragState.current.appliedDelta = 0
+  }, [])
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<SVGSVGElement>) => {
+      if (dragState.current.pointerId !== event.pointerId) {
+        return
+      }
+
+      const dx = event.clientX - dragState.current.startX
+      const cellDelta = Math.trunc(dx / FIELD_CELL_SIZE)
+
+      if (cellDelta !== dragState.current.appliedDelta) {
+        const deltaDiff = cellDelta - dragState.current.appliedDelta
+        dragState.current.appliedDelta = cellDelta
+        applyGroundShift(deltaDiff)
+      }
+    },
+    [applyGroundShift],
+  )
+
+  const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    if (dragState.current.pointerId !== event.pointerId) {
+      return
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    dragState.current.pointerId = null
+    dragState.current.startX = 0
+    dragState.current.appliedDelta = 0
   }, [])
 
   const { fixedField, fallingField, nextQueue } = manager.state
@@ -26,6 +80,11 @@ export function GameElement() {
       viewBox={`0 0 ${layout.viewSize} ${layout.viewSize}`}
       role="img"
       aria-label="ゲーム画面"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endDrag}
+      onPointerLeave={endDrag}
+      onPointerCancel={endDrag}
     >
       <defs>
         <linearGradient id="game-bg" x1="0" x2="1" y1="0" y2="1">
