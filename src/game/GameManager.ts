@@ -69,7 +69,7 @@ export class GameManager {
   }): GameManager {
     const dimensions = options?.dimensions ?? DEFAULT_FIELD_DIMENSIONS
     const queue = options?.queue ?? GameManager.createSeedQueue()
-    const fixedField = GameManager.createEmptyField(dimensions)
+    const fixedField = GameManager.seedDemoBlock(GameManager.createEmptyField(dimensions), dimensions)
     const fallingField = GameManager.createEmptyField(dimensions)
 
     return new GameManager(
@@ -117,6 +117,28 @@ export class GameManager {
       MINO_TYPE.J,
       MINO_TYPE.L,
     ]
+  }
+
+  private static seedDemoBlock(field: Cell[][], dimensions: FieldDimensions): Cell[][] {
+    const paddedField = field.map((row) => row.map((cell) => ({ ...cell })))
+    const blockColor = '#facc15'
+    const startRow = Math.max(dimensions.rows - 2, 0)
+    const startCol = Math.max(Math.floor((dimensions.cols - 2) / 2), 0)
+
+    for (let dy = 0; dy < 2; dy += 1) {
+      for (let dx = 0; dx < 2; dx += 1) {
+        const row = startRow + dy
+        const col = startCol + dx
+        if (row < dimensions.rows && col < dimensions.cols) {
+          paddedField[row][col] = {
+            color: blockColor,
+            state: CELL_STATE.Fixed,
+          }
+        }
+      }
+    }
+
+    return paddedField
   }
 }
 
