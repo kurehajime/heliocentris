@@ -11,6 +11,12 @@ import type {
   MinoType,
   NextMinoQueue,
 } from './types'
+import {
+  DEFAULT_EVAL_CONFIG,
+  cloneCell,
+  evaluateMinoCandidate,
+  canPlaceShape,
+} from './lib/evaluation'
 
 const MINO_COLORS: Record<MinoType, string> = {
   [MINO_TYPE.I]: '#8ad0ff',
@@ -70,10 +76,6 @@ const BAG_MINOS: MinoType[] = [
 ]
 
 const BAG_SIZE = BAG_MINOS.length
-const LINE_CLEAR_WEIGHT = 120
-const HOLE_WEIGHT = 45
-const SURFACE_WEIGHT = 4
-const HEIGHT_WEIGHT = 1
 
 export class GameManager {
   public readonly state: GameState
@@ -420,7 +422,7 @@ export class GameManager {
     }
 
     const shape = GameManager.getShapeFor(activeMino.mino, activeMino.rotation)
-    return GameManager.canPlaceShape(shape, activeMino.row, activeMino.col, fixedField, dimensions)
+    return canPlaceShape(shape, activeMino.row, activeMino.col, fixedField, dimensions)
   }
 
   private static mergeActiveIntoFixed(fixedField: FixedField, activeMino: ActiveMino): FixedField {
@@ -560,7 +562,13 @@ export class GameManager {
     let bestIndex = 0
 
     bag.forEach((mino, index) => {
-      const { score, rotation } = GameManager.evaluateMinoCandidate(field, dims, mino)
+      const { score, rotation } = evaluateMinoCandidate(
+        field,
+        dims,
+        mino,
+        (m, r) => GameManager.getShapeFor(m, r),
+        DEFAULT_EVAL_CONFIG,
+      )
       if (score > bestScore) {
         bestScore = score
         bestRotation = rotation
@@ -575,169 +583,6 @@ export class GameManager {
     return { mino: selectedMino, rotation: bestRotation, queue: replenishedQueue }
   }
 
-  private static evaluateMinoCandidate(
-    field: FixedField,
-    dimensions: FieldDimensions,
-    mino: MinoType,
-  ): { score: number; rotation: number } {
-    let bestScore = Number.NEGATIVE_INFINITY
-    let bestRotation = 0
-
-    for (let rotation = 0; rotation < 4; rotation += 1) {
-      const shape = GameManager.getShapeFor(mino, rotation)
-      const shapeWidth = shape[0]?.length ?? 0
-      const shapeHeight = shape.length
-      if (shapeWidth === 0 || shapeHeight === 0 || shapeWidth > dimensions.cols) {
-        continue
-      }
-
-      for (let col = 0; col <= dimensions.cols - shapeWidth; col += 1) {
-        const landingRow = GameManager.findLandingRow(shape, col, field, dimensions)
-        if (landingRow === null) {
-          continue
-        }
-
-        const mergedField = GameManager.mergeShapeOntoField(field, shape, landingRow, col)
-        const score = GameManager.evaluateField(mergedField)
-        if (score > bestScore) {
-          bestScore = score
-          bestRotation = rotation
-        }
-      }
-    }
-
-    if (bestScore === Number.NEGATIVE_INFINITY) {
-      return { score: Number.NEGATIVE_INFINITY, rotation: 0 }
-    }
-
-    return { score: bestScore, rotation: bestRotation }
-  }
-
-  private static findLandingRow(
-    shape: Cell[][],
-    col: number,
-    field: FixedField,
-    dimensions: FieldDimensions,
-  ): number | null {
-    if (!GameManager.canPlaceShape(shape, 0, col, field, dimensions)) {
-      return null
-    }
-
-    let row = 0
-    while (GameManager.canPlaceShape(shape, row + 1, col, field, dimensions)) {
-      row += 1
-    }
-
-    return row
-  }
-
-  private static mergeShapeOntoField(
-    field: FixedField,
-    shape: Cell[][],
-    row: number,
-    col: number,
-  ): FixedField {
-    const nextField = field.map((r) => r.map((cell) => ({ ...cell })))
-
-    shape.forEach((shapeRow, dy) => {
-      shapeRow.forEach((cell, dx) => {
-        if (cell.state === CELL_STATE.Empty) {
-          return
-        }
-
-        const targetRow = row + dy
-        const targetCol = col + dx
-        if (nextField[targetRow]?.[targetCol]) {
-          nextField[targetRow][targetCol] = cloneCell(cell, CELL_STATE.Fixed)
-        }
-      })
-    })
-
-    return nextField
-  }
-
-  private static evaluateField(field: FixedField): number {
-    const rows = field.length
-    const cols = field[0]?.length ?? 0
-    if (rows === 0 || cols === 0) {
-      return 0
-    }
-
-    let linesCleared = 0
-    const heights = new Array<number>(cols).fill(0)
-    let holes = 0
-
-    field.forEach((row) => {
-      if (row.every((cell) => cell.state !== CELL_STATE.Empty)) {
-        linesCleared += 1
-      }
-    })
-
-    for (let col = 0; col < cols; col += 1) {
-      let blockSeen = false
-      let columnHeight = 0
-      let columnHoles = 0
-      for (let row = 0; row < rows; row += 1) {
-        const cell = field[row][col]
-        if (cell.state !== CELL_STATE.Empty) {
-          if (!blockSeen) {
-            columnHeight = rows - row
-            blockSeen = true
-          }
-        } else if (blockSeen) {
-          columnHoles += 1
-        }
-      }
-      heights[col] = columnHeight
-      holes += columnHoles
-    }
-
-    let surface = 0
-    for (let col = 0; col < cols - 1; col += 1) {
-      surface += Math.abs(heights[col] - heights[col + 1])
-    }
-
-    const totalHeight = heights.reduce((sum, h) => sum + h, 0)
-
-    const score =
-      linesCleared * linesCleared * LINE_CLEAR_WEIGHT -
-      holes * HOLE_WEIGHT -
-      surface * SURFACE_WEIGHT -
-      totalHeight * HEIGHT_WEIGHT
-
-    return score
-  }
-
-  private static canPlaceShape(
-    shape: Cell[][],
-    row: number,
-    col: number,
-    field: FixedField,
-    dimensions: FieldDimensions,
-  ): boolean {
-    return shape.every((shapeRow, dy) =>
-      shapeRow.every((cell, dx) => {
-        if (cell.state === CELL_STATE.Empty) {
-          return true
-        }
-
-        const targetRow = row + dy
-        const targetCol = col + dx
-
-        if (
-          targetRow < 0 ||
-          targetRow >= dimensions.rows ||
-          targetCol < 0 ||
-          targetCol >= dimensions.cols
-        ) {
-          return false
-        }
-
-        const fixedCell = field[targetRow]?.[targetCol]
-        return fixedCell?.state === CELL_STATE.Empty
-      }),
-    )
-  }
 
   private static getShapeFor(mino: MinoType, rotation: number): Cell[][] {
     const baseShape = MINO_MAP[mino]
@@ -806,12 +651,5 @@ function createEmptyCell(): Cell {
   return {
     color: 'transparent',
     state: CELL_STATE.Empty,
-  }
-}
-
-function cloneCell(cell: Cell, stateOverride?: CellState): Cell {
-  return {
-    color: cell.color,
-    state: stateOverride ?? cell.state,
   }
 }
