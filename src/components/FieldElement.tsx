@@ -7,30 +7,34 @@ import { BlockElement } from './BlockElement'
 type FieldElementProps = {
   fixedField: FixedField
   fallingField: FallingField
-  cellSize?: number
+  cellSize: number
+  originX: number
+  originY: number
 }
 
-export function FieldElement({ fixedField, fallingField, cellSize = 24 }: FieldElementProps) {
+export function FieldElement({
+  fixedField,
+  fallingField,
+  cellSize,
+  originX,
+  originY,
+}: FieldElementProps) {
   const rows = Math.max(fixedField.length, fallingField.length)
   const cols = Math.max(fixedField[0]?.length ?? 0, fallingField[0]?.length ?? 0)
 
   const mergedField = useMemo(() => mergeFields(fixedField, fallingField, rows, cols), [fixedField, fallingField, rows, cols])
+  const width = cols * cellSize
+  const height = rows * cellSize
 
   return (
-    <svg
-      width={cols * cellSize}
-      height={rows * cellSize}
-      className="field-element"
-      role="img"
-      aria-label="ゲームフィールド"
-    >
-      <rect width="100%" height="100%" fill="#0f172a" rx={12} ry={12} />
+    <g className="field-element" transform={`translate(${originX} ${originY})`} role="presentation">
+      <rect width={width} height={height} fill="#0f172a" />
       {mergedField.map((row, y) =>
         row.map((cell, x) => (
           <BlockElement key={`${x}-${y}`} cell={cell} x={x} y={y} size={cellSize} />
         )),
       )}
-    </svg>
+    </g>
   )
 }
 

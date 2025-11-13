@@ -30,8 +30,6 @@ export function BlockElement({ cell, x, y, size }: BlockElementProps) {
       opacity={opacity}
       stroke="#333"
       strokeWidth={1}
-      rx={size * 0.1}
-      ry={size * 0.1}
     />
   )
 }

@@ -1,7 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { GameManager } from '../game/GameManager'
 import { FieldElement } from './FieldElement'
+
+const FIELD_CELL_SIZE = 18
+const SIDEBAR_WIDTH = 140
+const HORIZONTAL_GAP = 32
+const VIEWBOX_PADDING = 32
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
@@ -11,23 +16,76 @@ export function GameElement() {
   }, [])
 
   const { fixedField, fallingField, nextQueue } = manager.state
+  const { cols, rows } = manager.dimensions
+
+  const layout = useMemo(() => computeLayout({ cols, rows }), [cols, rows])
 
   return (
-    <section className="game-element">
-      <FieldElement fixedField={fixedField} fallingField={fallingField} />
-      <aside className="game-sidebar">
-        <p className="game-label">Next</p>
-        <ul className="mino-queue">
-          {nextQueue.map((mino) => (
-            <li key={mino} className="mino-queue__item">
+    <svg
+      className="game-element"
+      viewBox={`0 0 ${layout.viewSize} ${layout.viewSize}`}
+      role="img"
+      aria-label="ゲーム画面"
+    >
+      <defs>
+        <linearGradient id="game-bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stopColor="#0f172a" />
+          <stop offset="100%" stopColor="#1e1b4b" />
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#game-bg)" />
+      <FieldElement
+        fixedField={fixedField}
+        fallingField={fallingField}
+        cellSize={FIELD_CELL_SIZE}
+        originX={layout.fieldX}
+        originY={layout.fieldY}
+      />
+      <g transform={`translate(${layout.sidebarX} ${layout.sidebarY})`} className="game-sidebar" aria-label="ネクスト"> 
+        <text className="game-label" x={0} y={0} dy={14}>
+          NEXT
+        </text>
+        {nextQueue.map((mino, index) => (
+          <g key={mino + index} transform={`translate(0 ${20 + index * 28})`} className="mino-queue__item">
+            <rect width={SIDEBAR_WIDTH} height={24} />
+            <text x={SIDEBAR_WIDTH / 2} y={16} textAnchor="middle">
               {mino}
-            </li>
-          ))}
-        </ul>
-        <button type="button" onClick={handleTick} className="ghost-button">
-          状態更新(仮)
-        </button>
-      </aside>
-    </section>
+            </text>
+          </g>
+        ))}
+        <g
+          className="ghost-button"
+          transform={`translate(0 ${layout.sidebarHeight - 36})`}
+          onClick={handleTick}
+          role="button"
+        >
+          <rect width={SIDEBAR_WIDTH} height={32} />
+          <text x={SIDEBAR_WIDTH / 2} y={21} textAnchor="middle">
+            状態更新
+          </text>
+        </g>
+      </g>
+    </svg>
   )
+}
+
+function computeLayout({ cols, rows }: { cols: number; rows: number }) {
+  const fieldWidth = cols * FIELD_CELL_SIZE
+  const fieldHeight = rows * FIELD_CELL_SIZE
+  const contentWidth = fieldWidth + HORIZONTAL_GAP + SIDEBAR_WIDTH
+  const contentHeight = fieldHeight
+  const contentMax = Math.max(contentWidth, contentHeight)
+  const viewSize = contentMax + VIEWBOX_PADDING * 2
+
+  const offsetX = (viewSize - contentWidth) / 2
+  const offsetY = (viewSize - contentHeight) / 2
+
+  return {
+    viewSize,
+    fieldX: offsetX,
+    fieldY: offsetY,
+    sidebarX: offsetX + fieldWidth + HORIZONTAL_GAP,
+    sidebarY: offsetY,
+    sidebarHeight: fieldHeight,
+  }
 }

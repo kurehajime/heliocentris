@@ -1,82 +1,62 @@
 #root {
   min-height: 100vh;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding: 2rem;
   background: #020617;
-  color: #e2e8f0;
   font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .app-root {
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-.app-root header {
-  text-align: center;
+  align-items: center;
+  justify-content: center;
 }
 
 .game-element {
-  display: flex;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: block;
+  width: min(90vmin, 640px);
+  aspect-ratio: 1 / 1;
   box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
 }
 
-.game-sidebar {
-  min-width: 160px;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.game-sidebar text {
+  fill: #e2e8f0;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
 }
 
 .game-label {
-  margin: 0;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #94a3b8;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
-.mino-queue {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+
+.mino-queue__item rect {
+  fill: rgba(94, 234, 212, 0.15);
+  stroke: rgba(94, 234, 212, 0.4);
+  stroke-width: 1;
 }
 
-.mino-queue__item {
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.6rem;
-  background: rgba(94, 234, 212, 0.12);
-  border: 1px solid rgba(94, 234, 212, 0.3);
-  text-align: center;
+.mino-queue__item text {
   font-weight: 600;
 }
 
 .ghost-button {
-  padding: 0.5rem 0.8rem;
-  border-radius: 0.6rem;
-  border: 1px dashed rgba(148, 163, 184, 0.8);
-  background: transparent;
-  color: inherit;
   cursor: pointer;
-  transition: background 0.2s ease;
 }
 
-.ghost-button:hover {
-  background: rgba(148, 163, 184, 0.1);
+.ghost-button rect {
+  fill: rgba(148, 163, 184, 0.12);
+  stroke: rgba(148, 163, 184, 0.5);
+  stroke-dasharray: 6 4;
 }
 
-.field-element {
-  display: block;
-  border-radius: 1rem;
+.ghost-button text {
+  font-size: 0.85rem;
 }
