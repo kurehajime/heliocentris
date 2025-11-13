@@ -12,10 +12,18 @@ const FALL_INTERVAL_MS = 800
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
-  const dragState = useRef<{ pointerId: number | null; startX: number; appliedDelta: number }>({
+  const dragState = useRef<{
+    pointerId: number | null
+    startX: number
+    startY: number
+    appliedHorizontal: number
+    appliedVertical: number
+  }>({
     pointerId: null,
     startX: 0,
-    appliedDelta: 0,
+    startY: 0,
+    appliedHorizontal: 0,
+    appliedVertical: 0,
   })
   const frameRef = useRef<number | null>(null)
   const lastTickTimeRef = useRef<number | null>(null)
@@ -36,12 +44,22 @@ export function GameElement() {
     setManager((current) => GameManager.tick(current))
   }, [])
 
+  const applySoftDrop = useCallback((deltaCells: number) => {
+    if (deltaCells <= 0) {
+      return
+    }
+
+    setManager((current) => GameManager.dropActiveMino(current, deltaCells))
+  }, [])
+
   const handlePointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     dragState.current.pointerId = event.pointerId
     dragState.current.startX = event.clientX
-    dragState.current.appliedDelta = 0
+    dragState.current.startY = event.clientY
+    dragState.current.appliedHorizontal = 0
+    dragState.current.appliedVertical = 0
   }, [])
 
   const handlePointerMove = useCallback(
@@ -51,15 +69,29 @@ export function GameElement() {
       }
 
       const dx = event.clientX - dragState.current.startX
+      const dy = event.clientY - dragState.current.startY
+      const absX = Math.abs(dx)
+      const absY = Math.abs(dy)
+
+      if (absY > absX && dy > 0) {
+        const dropCells = Math.trunc(dy / FIELD_CELL_SIZE)
+        if (dropCells > dragState.current.appliedVertical) {
+          const delta = dropCells - dragState.current.appliedVertical
+          dragState.current.appliedVertical = dropCells
+          applySoftDrop(delta)
+        }
+        return
+      }
+
       const cellDelta = Math.trunc(dx / FIELD_CELL_SIZE)
 
-      if (cellDelta !== dragState.current.appliedDelta) {
-        const deltaDiff = cellDelta - dragState.current.appliedDelta
-        dragState.current.appliedDelta = cellDelta
+      if (cellDelta !== dragState.current.appliedHorizontal) {
+        const deltaDiff = cellDelta - dragState.current.appliedHorizontal
+        dragState.current.appliedHorizontal = cellDelta
         applyGroundShift(deltaDiff)
       }
     },
-    [applyGroundShift],
+    [applyGroundShift, applySoftDrop],
   )
 
   const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
@@ -73,7 +105,9 @@ export function GameElement() {
 
     dragState.current.pointerId = null
     dragState.current.startX = 0
-    dragState.current.appliedDelta = 0
+    dragState.current.startY = 0
+    dragState.current.appliedHorizontal = 0
+    dragState.current.appliedVertical = 0
   }, [])
 
   const { fixedField, fallingField, nextQueue } = manager.state

@@ -168,6 +168,27 @@ export class GameManager {
     return currentManager
   }
 
+  static dropActiveMino(manager: GameManager, deltaCells: number): GameManager {
+    if (deltaCells <= 0 || !manager.state.activeMino) {
+      return manager
+    }
+
+    const ghost = GameManager.findGhostMino(manager.state.activeMino, manager.state.fixedField, manager.dimensions)
+    const maxDrop = ghost.row - manager.state.activeMino.row
+    const dropAmount = Math.min(deltaCells, maxDrop)
+
+    if (dropAmount <= 0) {
+      return manager
+    }
+
+    const nextActive = {
+      ...manager.state.activeMino,
+      row: manager.state.activeMino.row + dropAmount,
+    }
+
+    return GameManager.updateActiveMino(manager, nextActive)
+  }
+
   private static updateActiveMino(manager: GameManager, activeMino: NonNullable<ActiveMino>): GameManager {
     const nextState: GameState = {
       ...manager.state,
