@@ -29,6 +29,16 @@ export function FieldElement({
   return (
     <g className="field-element" transform={`translate(${originX} ${originY})`} role="presentation">
       <rect width={width} height={height} fill="#0f172a" />
+      <g className="field-grid" stroke="rgba(148, 163, 184, 0.25)" strokeWidth={0.5} shapeRendering="crispEdges">
+        {Array.from({ length: cols + 1 }, (_, x) => {
+          const position = x * cellSize
+          return <line key={`v-${x}`} x1={position} x2={position} y1={0} y2={height} />
+        })}
+        {Array.from({ length: rows + 1 }, (_, y) => {
+          const position = y * cellSize
+          return <line key={`h-${y}`} x1={0} x2={width} y1={position} y2={position} />
+        })}
+      </g>
       {mergedField.map((row, y) =>
         row.map((cell, x) => (
           <BlockElement key={`${x}-${y}`} cell={cell} x={x} y={y} size={cellSize} />

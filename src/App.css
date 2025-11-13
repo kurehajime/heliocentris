@@ -1,3 +1,12 @@
+body,
+#root,
+.app-root,
+.game-element,
+.game-element text {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 #root {
   min-height: 100vh;
   width: 100%;
