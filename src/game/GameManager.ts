@@ -45,7 +45,7 @@ export const MINO_MAP: MinoMap = {
   ],
   [MINO_TYPE.T]: [
     [createSolidCell(MINO_TYPE.T), createSolidCell(MINO_TYPE.T), createSolidCell(MINO_TYPE.T)],
-    [createSolidCell(MINO_TYPE.T), createEmptyCell(), createEmptyCell()],
+    [createEmptyCell(), createSolidCell(MINO_TYPE.T), createEmptyCell()],
   ],
   [MINO_TYPE.S]: [
     [createEmptyCell(), createSolidCell(MINO_TYPE.S), createSolidCell(MINO_TYPE.S)],
