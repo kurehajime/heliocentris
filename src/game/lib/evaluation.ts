@@ -8,6 +8,7 @@ export type EvaluationConfig = {
   holeWeight: number
   surfaceWeight: number
   heightWeight: number
+  wellWeight: number
 }
 
 export const DEFAULT_EVAL_CONFIG: EvaluationConfig = {
@@ -15,6 +16,7 @@ export const DEFAULT_EVAL_CONFIG: EvaluationConfig = {
   holeWeight: 45,
   surfaceWeight: 4,
   heightWeight: 1,
+  wellWeight: 30,
 }
 
 export function evaluateMinoCandidate(
@@ -143,12 +145,104 @@ export function evaluateField(field: FixedField, config: EvaluationConfig = DEFA
 
   const totalHeight = heights.reduce((sum, h) => sum + h, 0)
 
+  const wellScore = evaluateWells(field, config.wellWeight)
+
   return (
     linesCleared * linesCleared * config.lineClearWeight -
     holes * config.holeWeight -
     surface * config.surfaceWeight -
-    totalHeight * config.heightWeight
+    totalHeight * config.heightWeight +
+    wellScore
   )
+}
+
+function evaluateWells(field: FixedField, weight: number): number {
+  if (weight === 0) {
+    return 0
+  }
+
+  const rows = field.length
+  if (rows === 0) {
+    return 0
+  }
+
+  const cols = field[0]?.length ?? 0
+  let totalWellScore = 0
+
+  for (let col = 0; col < cols; col += 1) {
+    const isEdgeLeft = col === 0
+    const isEdgeRight = col === cols - 1
+    const leftHeight = isEdgeLeft ? Number.POSITIVE_INFINITY : getColumnHeight(field, col - 1)
+    const rightHeight = isEdgeRight ? Number.POSITIVE_INFINITY : getColumnHeight(field, col + 1)
+    const currentHeight = getColumnHeight(field, col)
+
+    const leftHigher = leftHeight >= currentHeight + 2
+    const rightHigher = rightHeight >= currentHeight + 2
+    if (!leftHigher || !rightHigher) {
+      continue
+    }
+
+    const wellDepth = countOpenWellDepth(field, col)
+    if (wellDepth === 0) {
+      continue
+    }
+
+    const fullRows = countFullRowsUnderWell(field, col, wellDepth)
+    if (fullRows === 0) {
+      continue
+    }
+
+    totalWellScore += fullRows * wellDepth * weight
+  }
+
+  return totalWellScore
+}
+
+function getColumnHeight(field: FixedField, col: number): number {
+  for (let row = 0; row < field.length; row += 1) {
+    if (field[row][col].state !== CELL_STATE.Empty) {
+      return field.length - row
+    }
+  }
+  return 0
+}
+
+function countOpenWellDepth(field: FixedField, col: number): number {
+  let depth = 0
+  for (let row = 0; row < field.length; row += 1) {
+    if (field[row][col].state === CELL_STATE.Empty) {
+      depth += 1
+    } else {
+      break
+    }
+  }
+  return depth
+}
+
+function countFullRowsUnderWell(field: FixedField, col: number, depth: number): number {
+  let count = 0
+  for (let row = field.length - depth; row < field.length; row += 1) {
+    if (row < 0) {
+      continue
+    }
+
+    let filled = true
+    for (let c = 0; c < field[row].length; c += 1) {
+      if (c === col) {
+        continue
+      }
+      if (field[row][c].state === CELL_STATE.Empty) {
+        filled = false
+        break
+      }
+    }
+
+    if (filled) {
+      count += 1
+    }
+  }
+
+  return count
 }
 
 export function canPlaceShape(
