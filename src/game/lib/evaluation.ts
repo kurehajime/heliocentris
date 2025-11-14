@@ -145,15 +145,38 @@ export function evaluateField(field: FixedField, config: EvaluationConfig = DEFA
 
   const totalHeight = heights.reduce((sum, h) => sum + h, 0)
 
-  const wellScore = evaluateWells(field, config.wellWeight)
+  const maxHeight = Math.max(...heights)
+  const modeAdjustedConfig = adjustWeightsForMode(config, holes > 0, maxHeight)
+  const wellScore = evaluateWells(field, modeAdjustedConfig.wellWeight)
 
   return (
-    linesCleared * linesCleared * config.lineClearWeight -
-    holes * config.holeWeight -
-    surface * config.surfaceWeight -
-    totalHeight * config.heightWeight +
+    linesCleared * linesCleared * modeAdjustedConfig.lineClearWeight -
+    holes * modeAdjustedConfig.holeWeight -
+    surface * modeAdjustedConfig.surfaceWeight -
+    totalHeight * modeAdjustedConfig.heightWeight +
     wellScore
   )
+}
+
+function adjustWeightsForMode(
+  config: EvaluationConfig,
+  hasHoles: boolean,
+  maxHeight: number,
+): EvaluationConfig {
+  const modeConfig = { ...config }
+
+  const isClearMode = hasHoles || maxHeight >= 11
+  const isStackMode = !hasHoles && maxHeight <= 10
+
+  if (isClearMode) {
+    modeConfig.wellWeight = 0
+  }
+
+  if (isStackMode) {
+    modeConfig.lineClearWeight = 0
+  }
+
+  return modeConfig
 }
 
 function evaluateWells(field: FixedField, weight: number): number {
