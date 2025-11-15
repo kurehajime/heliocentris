@@ -173,12 +173,13 @@ function computeLayout({ cols, rows }: { cols: number; rows: number }) {
   const horizontalMargin = FIELD_CELL_SIZE * HORIZONTAL_MARGIN_CELLS
   const viewWidth = fieldWidth + horizontalMargin * 2
   const viewHeight = fieldHeight + VERTICAL_PADDING * 2
+  const fieldY = Math.max(0, VERTICAL_PADDING - FIELD_CELL_SIZE)
 
   return {
     viewWidth,
     viewHeight,
     fieldX: horizontalMargin,
-    fieldY: VERTICAL_PADDING,
+    fieldY,
     aspectRatio: viewWidth / viewHeight,
   }
 }
