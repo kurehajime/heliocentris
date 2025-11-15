@@ -112,9 +112,17 @@ export function GameElement() {
   )
 
   const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
-    if (dragState.current.pointerId !== event.pointerId) {
-      return
-    }
+      if (dragState.current.pointerId !== event.pointerId) {
+        if (event.pointerType !== 'mouse') {
+          return
+        }
+
+        dragState.current.pointerId = event.pointerId
+        dragState.current.startX = event.clientX
+        dragState.current.startY = event.clientY
+        dragState.current.appliedHorizontal = 0
+        dragState.current.appliedVertical = 0
+      }
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
