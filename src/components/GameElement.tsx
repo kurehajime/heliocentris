@@ -47,18 +47,28 @@ export function GameElement() {
     setManager((current) => GameManager.dropActiveMino(current, deltaCells))
   }, [])
 
-  const handlePointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    dragState.current.pointerId = event.pointerId
-    dragState.current.startX = event.clientX
-    dragState.current.startY = event.clientY
-    dragState.current.appliedHorizontal = 0
-    dragState.current.appliedVertical = 0
-  }, [])
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<SVGSVGElement>) => {
+      if (manager.state.gameOver) {
+        return
+      }
+      event.preventDefault()
+      event.currentTarget.setPointerCapture(event.pointerId)
+      dragState.current.pointerId = event.pointerId
+      dragState.current.startX = event.clientX
+      dragState.current.startY = event.clientY
+      dragState.current.appliedHorizontal = 0
+      dragState.current.appliedVertical = 0
+    },
+    [manager.state.gameOver],
+  )
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
+      if (manager.state.gameOver) {
+        return
+      }
+
       if (dragState.current.pointerId !== event.pointerId) {
         return
       }
@@ -86,7 +96,7 @@ export function GameElement() {
         applyGroundShift(deltaDiff)
       }
     },
-    [applyGroundShift, applySoftDrop],
+    [applyGroundShift, applySoftDrop, manager.state.gameOver],
   )
 
   const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
@@ -105,10 +115,13 @@ export function GameElement() {
     dragState.current.appliedVertical = 0
   }, [])
 
-  const { fixedField, fallingField } = manager.state
+  const { fixedField, fallingField, gameOver } = manager.state
   const { cols, rows } = manager.dimensions
 
   const layout = useMemo(() => computeLayout({ cols, rows }), [cols, rows])
+  const handleRestart = useCallback(() => {
+    setManager(GameManager.bootstrap())
+  }, [])
 
   useEffect(() => {
     const loop = (timestamp: number) => {
@@ -137,33 +150,44 @@ export function GameElement() {
   }, [advanceTick])
 
   return (
-    <svg
-      className="game-element"
-      viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`}
-      style={{ aspectRatio: layout.aspectRatio }}
-      role="img"
-      aria-label="ゲーム画面"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endDrag}
-      onPointerLeave={endDrag}
-      onPointerCancel={endDrag}
-    >
-      <defs>
-        <linearGradient id="game-bg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#0f172a" />
-          <stop offset="100%" stopColor="#1e1b4b" />
-        </linearGradient>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#game-bg)" />
-      <FieldElement
-        fixedField={fixedField}
-        fallingField={fallingField}
-        cellSize={FIELD_CELL_SIZE}
-        originX={layout.fieldX}
-        originY={layout.fieldY}
-      />
-    </svg>
+    <div className="game-element" style={{ aspectRatio: layout.aspectRatio }}>
+      <svg
+        className="game-canvas"
+        viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`}
+        role="img"
+        aria-label="ゲーム画面"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
+        onPointerCancel={endDrag}
+      >
+        <defs>
+          <linearGradient id="game-bg" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stopColor="#0f172a" />
+            <stop offset="100%" stopColor="#1e1b4b" />
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#game-bg)" />
+        <FieldElement
+          fixedField={fixedField}
+          fallingField={fallingField}
+          cellSize={FIELD_CELL_SIZE}
+          originX={layout.fieldX}
+          originY={layout.fieldY}
+        />
+      </svg>
+      {gameOver && (
+        <div className="game-overlay" role="presentation">
+          <div className="game-over-card">
+            <p>ゲームオーバー</p>
+            <button type="button" onClick={handleRestart}>
+              ニューゲーム
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

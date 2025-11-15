@@ -284,8 +284,16 @@ export function canPlaceShape(
       const targetRow = row + dy
       const targetCol = col + dx
 
-      if (targetRow < 0 || targetRow >= dimensions.rows || targetCol < 0 || targetCol >= dimensions.cols) {
+      if (targetCol < 0 || targetCol >= dimensions.cols) {
         return false
+      }
+
+      if (targetRow >= dimensions.rows) {
+        return false
+      }
+
+      if (targetRow < 0) {
+        return true
       }
 
       const fixedCell = field[targetRow]?.[targetCol]

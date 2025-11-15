@@ -53,6 +53,7 @@ export type GameState = {
   activeMino: ActiveMino
   clearingRows: number[]
   clearCountdown: number
+  gameOver: boolean
 }
 
 export type FieldDimensions = {

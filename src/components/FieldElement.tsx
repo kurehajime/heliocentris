@@ -29,6 +29,7 @@ export function FieldElement({
   return (
     <g className="field-element" transform={`translate(${originX} ${originY})`} role="presentation">
       <rect width={width} height={height} fill="#0f172a" />
+      <rect width={width} height={cellSize} fill="rgba(248, 113, 113, 0.18)" />
       <g className="field-grid" stroke="rgba(148, 163, 184, 0.25)" strokeWidth={0.5} shapeRendering="crispEdges">
         {Array.from({ length: cols + 1 }, (_, x) => {
           const position = x * cellSize

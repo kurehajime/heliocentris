@@ -104,12 +104,17 @@ export class GameManager {
       activeMino: null,
       clearingRows: [],
       clearCountdown: 0,
+      gameOver: false,
     }
 
     return GameManager.spawnActiveMino(new GameManager(baseState, dimensions))
   }
 
   static tick(manager: GameManager): GameManager {
+    if (manager.state.gameOver) {
+      return manager
+    }
+
     if (manager.state.clearingRows.length > 0) {
       return GameManager.progressClearing(manager)
     }
@@ -128,6 +133,15 @@ export class GameManager {
     }
 
     const mergedField = GameManager.mergeActiveIntoFixed(ensuredManager.state.fixedField, activeMino)
+
+    if (GameManager.hasBlocksInTopRow(mergedField)) {
+      const nextState: GameState = {
+        ...ensuredManager.state,
+        fixedField: mergedField,
+      }
+      return GameManager.concludeGame(nextState, ensuredManager.dimensions)
+    }
+
     const { field: fieldWithMarks, rows } = GameManager.markDeletingRows(mergedField)
 
     if (rows.length > 0) {
@@ -171,6 +185,10 @@ export class GameManager {
   }
 
   static shiftGroundByCells(manager: GameManager, deltaCells: number): GameManager {
+    if (manager.state.gameOver) {
+      return manager
+    }
+
     const cols = manager.dimensions.cols
     if (cols === 0 || deltaCells === 0) {
       return manager
@@ -214,6 +232,10 @@ export class GameManager {
   }
 
   static dropActiveMino(manager: GameManager, deltaCells: number): GameManager {
+    if (manager.state.gameOver) {
+      return manager
+    }
+
     if (deltaCells <= 0 || !manager.state.activeMino || manager.state.clearingRows.length > 0) {
       return manager
     }
@@ -281,9 +303,11 @@ export class GameManager {
     const shape = GameManager.getShapeFor(mino, rotation)
     const shapeWidth = shape[0]?.length ?? 0
     const col = Math.max(Math.floor((manager.dimensions.cols - shapeWidth) / 2), 0)
+    const shapeHeight = shape.length
+    const spawnRow = shapeHeight > 0 ? -shapeHeight : 0
     const activeMino = {
       mino,
-      row: 0,
+      row: spawnRow,
       col,
       rotation,
     }
@@ -294,12 +318,7 @@ export class GameManager {
         nextQueue: queue,
         activeMino: null,
       }
-      nextState.fallingField = GameManager.composeFallingField(
-        manager.dimensions,
-        nextState.activeMino,
-        nextState.fixedField,
-      )
-      return new GameManager(nextState, manager.dimensions)
+      return GameManager.concludeGame(nextState, manager.dimensions)
     }
 
     const nextState: GameState = {
@@ -644,6 +663,26 @@ export class GameManager {
 
     const normalized = delta % modulus
     return normalized < 0 ? normalized + modulus : normalized
+  }
+
+  private static hasBlocksInTopRow(field: FixedField): boolean {
+    const topRow = field[0]
+    if (!topRow) {
+      return false
+    }
+    return topRow.some((cell) => cell.state !== CELL_STATE.Empty)
+  }
+
+  private static concludeGame(state: GameState, dimensions: FieldDimensions): GameManager {
+    const nextState: GameState = {
+      ...state,
+      activeMino: null,
+      clearingRows: [],
+      clearCountdown: 0,
+      gameOver: true,
+    }
+    nextState.fallingField = GameManager.composeFallingField(dimensions, nextState.activeMino, nextState.fixedField)
+    return new GameManager(nextState, dimensions)
   }
 }
 
