@@ -47,6 +47,9 @@ export function GameElement() {
 
     setManager((current) => GameManager.dropActiveMino(current, deltaCells))
   }, [])
+  const applyHardDrop = useCallback(() => {
+    setManager((current) => GameManager.hardDropActiveMino(current))
+  }, [])
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -71,7 +74,15 @@ export function GameElement() {
       }
 
       if (dragState.current.pointerId !== event.pointerId) {
-        return
+        if (event.pointerType !== 'mouse') {
+          return
+        }
+
+        dragState.current.pointerId = event.pointerId
+        dragState.current.startX = event.clientX
+        dragState.current.startY = event.clientY
+        dragState.current.appliedHorizontal = 0
+        dragState.current.appliedVertical = 0
       }
 
       const dx = event.clientX - dragState.current.startX
@@ -109,12 +120,18 @@ export function GameElement() {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
 
+    const isClick =
+      dragState.current.appliedHorizontal === 0 && dragState.current.appliedVertical === 0 && event.type === 'pointerup'
+    if (isClick) {
+      applyHardDrop()
+    }
+
     dragState.current.pointerId = null
     dragState.current.startX = 0
     dragState.current.startY = 0
     dragState.current.appliedHorizontal = 0
     dragState.current.appliedVertical = 0
-  }, [])
+  }, [applyHardDrop])
 
   const { fixedField, fallingField, gameOver } = manager.state
   const { cols, rows } = manager.dimensions

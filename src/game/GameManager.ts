@@ -262,6 +262,16 @@ export class GameManager {
     return GameManager.updateActiveMino(manager, nextActive)
   }
 
+  static hardDropActiveMino(manager: GameManager): GameManager {
+    if (manager.state.gameOver || manager.state.clearingRows.length > 0 || !manager.state.activeMino) {
+      return manager
+    }
+
+    const ghost = GameManager.findGhostMino(manager.state.activeMino, manager.state.fixedField, manager.dimensions)
+    const withGhost = GameManager.updateActiveMino(manager, ghost)
+    return GameManager.tick(withGhost)
+  }
+
   private static progressClearing(manager: GameManager): GameManager {
     if (manager.state.clearingRows.length === 0) {
       return manager
