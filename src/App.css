@@ -45,48 +45,26 @@ body,
   touch-action: none;
 }
 
-.game-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(2, 6, 23, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
+.game-overlay text {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 }
 
-.game-over-card {
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(248, 113, 113, 0.4);
-  border-radius: 8px;
-  padding: 1.25rem;
-  text-align: center;
-  color: #f8fafc;
-  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.7);
-}
-
-.game-over-card p {
-  margin: 0 0 0.75rem;
-  font-size: 1.1rem;
-  letter-spacing: 0.05em;
-}
-
-.game-over-card button {
-  border: none;
-  border-radius: 999px;
-  padding: 0.6rem 1.4rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #0f172a;
-  background: #f87171;
+.game-over-button {
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
 }
 
-.game-over-card button:active {
-  transform: scale(0.98);
+.game-over-button rect {
+  transition: fill 0.2s ease, transform 0.15s ease;
 }
 
-.game-over-card button:hover {
-  background: #fca5a5;
+.game-over-button:hover rect {
+  fill: #fca5a5;
+}
+
+.game-over-button:active rect {
+  transform: scale(0.97);
+}
+
+.game-over-button text {
+  pointer-events: none;
 }
