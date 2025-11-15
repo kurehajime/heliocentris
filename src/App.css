@@ -32,5 +32,6 @@ body,
   width: min(92vw, 520px);
   max-height: 95vh;
   height: auto;
+  touch-action: none;
   box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
 }
