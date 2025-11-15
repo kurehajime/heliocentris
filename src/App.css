@@ -29,7 +29,8 @@ body,
 
 .game-element {
   display: block;
-  width: min(90vmin, 520px);
-  aspect-ratio: 1 / 1;
+  width: min(92vw, 520px);
+  max-height: 95vh;
+  height: auto;
   box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
 }

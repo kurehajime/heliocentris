@@ -5,7 +5,8 @@ import { GameManager } from '../game/GameManager'
 import { FieldElement } from './FieldElement'
 
 const FIELD_CELL_SIZE = 18
-const VIEWBOX_PADDING = 32
+const HORIZONTAL_MARGIN_CELLS = 2
+const VERTICAL_PADDING = 32
 const FALL_INTERVAL_MS = 800
 
 export function GameElement() {
@@ -138,7 +139,8 @@ export function GameElement() {
   return (
     <svg
       className="game-element"
-      viewBox={`0 0 ${layout.viewSize} ${layout.viewSize}`}
+      viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`}
+      style={{ aspectRatio: layout.aspectRatio }}
       role="img"
       aria-label="ゲーム画面"
       onPointerDown={handlePointerDown}
@@ -168,15 +170,15 @@ export function GameElement() {
 function computeLayout({ cols, rows }: { cols: number; rows: number }) {
   const fieldWidth = cols * FIELD_CELL_SIZE
   const fieldHeight = rows * FIELD_CELL_SIZE
-  const contentMax = Math.max(fieldWidth, fieldHeight)
-  const viewSize = contentMax + VIEWBOX_PADDING * 2
-
-  const offsetX = (viewSize - fieldWidth) / 2
-  const offsetY = (viewSize - fieldHeight) / 2
+  const horizontalMargin = FIELD_CELL_SIZE * HORIZONTAL_MARGIN_CELLS
+  const viewWidth = fieldWidth + horizontalMargin * 2
+  const viewHeight = fieldHeight + VERTICAL_PADDING * 2
 
   return {
-    viewSize,
-    fieldX: offsetX,
-    fieldY: offsetY,
+    viewWidth,
+    viewHeight,
+    fieldX: horizontalMargin,
+    fieldY: VERTICAL_PADDING,
+    aspectRatio: viewWidth / viewHeight,
   }
 }
