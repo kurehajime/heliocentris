@@ -27,6 +27,10 @@ export function GameElement() {
   const lastTickTimeRef = useRef<number | null>(null)
   const fallIntervalRef = useRef<number>(GameManager.getFallInterval(manager.state.level))
 
+  const { fixedField, fallingField, gameOver } = manager.state
+  const { cols, rows } = manager.dimensions
+  const layout = useMemo(() => computeLayout({ cols, rows }), [cols, rows])
+
   const applyGroundShift = useCallback((deltaCells: number) => {
     if (deltaCells === 0) {
       return
@@ -84,8 +88,13 @@ export function GameElement() {
         dragState.current.appliedVertical = 0
       }
 
-      const dx = event.clientX - dragState.current.startX
-      const dy = event.clientY - dragState.current.startY
+      const dxPx = event.clientX - dragState.current.startX
+      const dyPx = event.clientY - dragState.current.startY
+      const rect = event.currentTarget.getBoundingClientRect()
+      const pixelToViewX = rect.width > 0 ? layout.viewWidth / rect.width : 1
+      const pixelToViewY = rect.height > 0 ? layout.viewHeight / rect.height : 1
+      const dx = dxPx * pixelToViewX
+      const dy = dyPx * pixelToViewY
       const absX = Math.abs(dx)
       const absY = Math.abs(dy)
 
@@ -107,7 +116,7 @@ export function GameElement() {
         applyGroundShift(deltaDiff)
       }
     },
-    [applyGroundShift, applySoftDrop, manager.state.gameOver],
+    [applyGroundShift, applySoftDrop, manager.state.gameOver, layout.viewHeight, layout.viewWidth],
   )
 
   const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
@@ -137,13 +146,9 @@ export function GameElement() {
     dragState.current.startX = 0
     dragState.current.startY = 0
     dragState.current.appliedHorizontal = 0
-    dragState.current.appliedVertical = 0
-  }, [applyHardDrop])
+  dragState.current.appliedVertical = 0
+}, [applyHardDrop])
 
-  const { fixedField, fallingField, gameOver } = manager.state
-  const { cols, rows } = manager.dimensions
-
-  const layout = useMemo(() => computeLayout({ cols, rows }), [cols, rows])
   const overlayMetrics = useMemo(() => computeOverlayMetrics(layout, cols, rows), [layout, cols, rows])
   const handleRestart = useCallback(() => {
     setManager(GameManager.bootstrap())
