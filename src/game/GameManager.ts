@@ -34,7 +34,7 @@ const createSolidCell = (mino: MinoType): Cell => ({
 })
 
 const CLEAR_DELAY_TICKS = 1
-const BASE_FALL_INTERVAL_MS = 50
+const BASE_FALL_INTERVAL_MS = 400
 
 export const MINO_MAP: MinoMap = {
   [MINO_TYPE.I]: [
@@ -737,7 +737,7 @@ export class GameManager {
 
     const baseline = state.firstClearDropCount ?? state.minoDrops
     const progress = Math.max(0, state.minoDrops - baseline)
-    return 3 + Math.floor(progress / 3)
+    return 3 + Math.floor(progress / 5)
   }
 }
 

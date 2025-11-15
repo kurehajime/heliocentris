@@ -7,7 +7,6 @@ import { FieldElement } from './FieldElement'
 const FIELD_CELL_SIZE = 18
 const HORIZONTAL_MARGIN_CELLS = 2
 const VERTICAL_PADDING = 32
-const FALL_INTERVAL_MS = 400
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
@@ -162,7 +161,7 @@ export function GameElement() {
       }
 
       const delta = timestamp - lastTickTimeRef.current
-      if (delta >= FALL_INTERVAL_MS) {
+      if (delta >= fallIntervalRef.current) {
         advanceTick()
         lastTickTimeRef.current = timestamp
       }
