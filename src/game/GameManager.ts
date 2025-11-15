@@ -551,11 +551,11 @@ export class GameManager {
   }
 
   private static ensureBag(queue: NextMinoQueue): NextMinoQueue {
-    let nextQueue = queue.slice()
-    while (nextQueue.length < BAG_SIZE) {
-      nextQueue = nextQueue.concat(GameManager.createShuffledBag())
+    if (queue.length > 0) {
+      return queue.slice()
     }
-    return nextQueue
+
+    return GameManager.createShuffledBag()
   }
 
   private static createShuffledBag(): NextMinoQueue {
