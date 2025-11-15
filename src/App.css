@@ -29,43 +29,7 @@ body,
 
 .game-element {
   display: block;
-  width: min(90vmin, 640px);
+  width: min(90vmin, 520px);
   aspect-ratio: 1 / 1;
   box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
-}
-
-.game-sidebar text {
-  fill: #e2e8f0;
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
-}
-
-.game-label {
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-
-.mino-queue__item rect {
-  fill: rgba(94, 234, 212, 0.15);
-  stroke: rgba(94, 234, 212, 0.4);
-  stroke-width: 1;
-}
-
-.mino-queue__item text {
-  font-weight: 600;
-}
-
-.ghost-button {
-  cursor: pointer;
-}
-
-.ghost-button rect {
-  fill: rgba(148, 163, 184, 0.12);
-  stroke: rgba(148, 163, 184, 0.5);
-  stroke-dasharray: 6 4;
-}
-
-.ghost-button text {
-  font-size: 0.85rem;
 }
