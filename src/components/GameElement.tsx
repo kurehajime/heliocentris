@@ -77,15 +77,7 @@ export function GameElement() {
       }
 
       if (dragState.current.pointerId !== event.pointerId) {
-        if (event.pointerType !== 'mouse') {
-          return
-        }
-
-        dragState.current.pointerId = event.pointerId
-        dragState.current.startX = event.clientX
-        dragState.current.startY = event.clientY
-        dragState.current.appliedHorizontal = 0
-        dragState.current.appliedVertical = 0
+        return
       }
 
       const dxPx = event.clientX - dragState.current.startX
