@@ -34,6 +34,7 @@ const createSolidCell = (mino: MinoType): Cell => ({
 })
 
 const CLEAR_DELAY_TICKS = 1
+const BASE_FALL_INTERVAL_MS = 50
 
 export const MINO_MAP: MinoMap = {
   [MINO_TYPE.I]: [
@@ -100,6 +101,10 @@ export class GameManager {
       heldMino: null,
       score: 0,
       lines: 0,
+      level: 1,
+      minoDrops: 0,
+      hasClearedLine: false,
+      firstClearDropCount: null,
       groundShift: 0,
       activeMino: null,
       clearingRows: [],
@@ -142,13 +147,25 @@ export class GameManager {
       return GameManager.concludeGame(nextState, ensuredManager.dimensions)
     }
 
-    const { field: fieldWithMarks, rows } = GameManager.markDeletingRows(mergedField)
+    let afterDropState: GameState = {
+      ...ensuredManager.state,
+      fixedField: mergedField,
+      activeMino: null,
+      minoDrops: ensuredManager.state.minoDrops + 1,
+    }
+    afterDropState.fallingField = GameManager.composeFallingField(
+      ensuredManager.dimensions,
+      afterDropState.activeMino,
+      afterDropState.fixedField,
+    )
+    afterDropState = GameManager.withUpdatedLevel(afterDropState)
+
+    const { field: fieldWithMarks, rows } = GameManager.markDeletingRows(afterDropState.fixedField)
 
     if (rows.length > 0) {
       const clearingState: GameState = {
-        ...ensuredManager.state,
+        ...afterDropState,
         fixedField: fieldWithMarks,
-        activeMino: null,
         clearingRows: rows,
         clearCountdown: CLEAR_DELAY_TICKS,
       }
@@ -161,18 +178,7 @@ export class GameManager {
       return new GameManager(clearingState, ensuredManager.dimensions)
     }
 
-    const mergedState: GameState = {
-      ...ensuredManager.state,
-      fixedField: mergedField,
-      activeMino: null,
-    }
-    mergedState.fallingField = GameManager.composeFallingField(
-      ensuredManager.dimensions,
-      mergedState.activeMino,
-      mergedState.fixedField,
-    )
-
-    const settledManager = new GameManager(mergedState, ensuredManager.dimensions)
+    const settledManager = new GameManager(afterDropState, ensuredManager.dimensions)
     return GameManager.spawnActiveMino(settledManager)
   }
 
@@ -273,12 +279,21 @@ export class GameManager {
       manager.state.fixedField,
       manager.state.clearingRows,
     )
-    const clearedState: GameState = {
+    let clearedState: GameState = {
       ...manager.state,
       fixedField: clearedField,
       clearingRows: [],
       clearCountdown: 0,
+      lines: manager.state.lines + manager.state.clearingRows.length,
     }
+    if (manager.state.clearingRows.length > 0 && !manager.state.hasClearedLine) {
+      clearedState = {
+        ...clearedState,
+        hasClearedLine: true,
+        firstClearDropCount: clearedState.firstClearDropCount ?? clearedState.minoDrops,
+      }
+    }
+    clearedState = GameManager.withUpdatedLevel(clearedState)
     clearedState.fallingField = GameManager.composeFallingField(
       manager.dimensions,
       clearedState.activeMino,
@@ -562,7 +577,7 @@ export class GameManager {
     const bag = BAG_MINOS.slice()
     for (let i = bag.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[bag[i], bag[j]] = [bag[j], bag[i]]
+        ;[bag[i], bag[j]] = [bag[j], bag[i]]
     }
     return bag
   }
@@ -600,6 +615,11 @@ export class GameManager {
     const replenishedQueue = GameManager.ensureBag(remainingQueue)
 
     return { mino: selectedMino, rotation: bestRotation, queue: replenishedQueue }
+  }
+
+  static getFallInterval(level: number): number {
+    const safeLevel = Math.max(level, 1)
+    return BASE_FALL_INTERVAL_MS / Math.sqrt(safeLevel)
   }
 
 
@@ -683,6 +703,31 @@ export class GameManager {
     }
     nextState.fallingField = GameManager.composeFallingField(dimensions, nextState.activeMino, nextState.fixedField)
     return new GameManager(nextState, dimensions)
+  }
+
+  private static withUpdatedLevel(state: GameState): GameState {
+    const nextLevel = GameManager.computeLevel(state)
+    if (nextLevel === state.level) {
+      return state
+    }
+    return {
+      ...state,
+      level: nextLevel,
+    }
+  }
+
+  private static computeLevel(state: GameState): number {
+    if (state.minoDrops <= 0) {
+      return 1
+    }
+
+    if (!state.hasClearedLine) {
+      return 2
+    }
+
+    const baseline = state.firstClearDropCount ?? state.minoDrops
+    const progress = Math.max(0, state.minoDrops - baseline)
+    return 3 + Math.floor(progress / 3)
   }
 }
 

@@ -49,6 +49,10 @@ export type GameState = {
   heldMino: MinoType | null
   score: number
   lines: number
+  level: number
+  minoDrops: number
+  hasClearedLine: boolean
+  firstClearDropCount: number | null
   groundShift: number
   activeMino: ActiveMino
   clearingRows: number[]

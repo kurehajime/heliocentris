@@ -26,6 +26,7 @@ export function GameElement() {
   })
   const frameRef = useRef<number | null>(null)
   const lastTickTimeRef = useRef<number | null>(null)
+  const fallIntervalRef = useRef<number>(GameManager.getFallInterval(manager.state.level))
 
   const applyGroundShift = useCallback((deltaCells: number) => {
     if (deltaCells === 0) {
@@ -123,6 +124,11 @@ export function GameElement() {
   const handleRestart = useCallback(() => {
     setManager(GameManager.bootstrap())
   }, [])
+
+  useEffect(() => {
+    fallIntervalRef.current = GameManager.getFallInterval(manager.state.level)
+    console.log('level:', manager.state.level)
+  }, [manager.state.level])
 
   useEffect(() => {
     const loop = (timestamp: number) => {
