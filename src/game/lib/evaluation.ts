@@ -103,28 +103,22 @@ export function mergeShapeOntoField(
 }
 
 export function evaluateField(field: FixedField, config: EvaluationConfig = DEFAULT_EVAL_CONFIG): number {
-  const rows = field.length
-  const cols = field[0]?.length ?? 0
+  const { field: postClearField, clearedLines } = clearCompletedRows(field)
+  const rows = postClearField.length
+  const cols = postClearField[0]?.length ?? 0
   if (rows === 0 || cols === 0) {
     return 0
   }
 
-  let linesCleared = 0
   const heights = new Array<number>(cols).fill(0)
   let holes = 0
-
-  field.forEach((row) => {
-    if (row.every((cell) => cell.state !== CELL_STATE.Empty)) {
-      linesCleared += 1
-    }
-  })
 
   for (let col = 0; col < cols; col += 1) {
     let blockSeen = false
     let columnHeight = 0
     let columnHoles = 0
     for (let row = 0; row < rows; row += 1) {
-      const cell = field[row][col]
+      const cell = postClearField[row][col]
       if (cell.state !== CELL_STATE.Empty) {
         if (!blockSeen) {
           columnHeight = rows - row
@@ -147,10 +141,10 @@ export function evaluateField(field: FixedField, config: EvaluationConfig = DEFA
 
   const maxHeight = Math.max(...heights)
   const modeAdjustedConfig = adjustWeightsForMode(config, holes > 0, maxHeight)
-  const wellScore = evaluateWells(field, modeAdjustedConfig.wellWeight)
+  const wellScore = evaluateWells(postClearField, modeAdjustedConfig.wellWeight)
 
   return (
-    linesCleared * linesCleared * modeAdjustedConfig.lineClearWeight -
+    clearedLines * clearedLines * modeAdjustedConfig.lineClearWeight -
     holes * modeAdjustedConfig.holeWeight -
     surface * modeAdjustedConfig.surfaceWeight -
     totalHeight * modeAdjustedConfig.heightWeight +
@@ -266,6 +260,41 @@ function countFullRowsUnderWell(field: FixedField, col: number, depth: number): 
   }
 
   return count
+}
+
+function clearCompletedRows(field: FixedField): { field: FixedField; clearedLines: number } {
+  const rows = field.length
+  if (rows === 0) {
+    return { field, clearedLines: 0 }
+  }
+
+  const cols = field[0]?.length ?? 0
+  const remaining: Cell[][] = []
+  let clearedLines = 0
+
+  field.forEach((row) => {
+    const isFull = row.every((cell) => cell.state !== CELL_STATE.Empty)
+    if (isFull) {
+      clearedLines += 1
+    } else {
+      remaining.push(row)
+    }
+  })
+
+  if (clearedLines === 0) {
+    return { field, clearedLines: 0 }
+  }
+
+  const emptyRow = Array.from({ length: cols }, () => ({
+    color: '#222',
+    state: CELL_STATE.Empty,
+  }))
+  const padding = Array.from({ length: clearedLines }, () => emptyRow.map((cell) => ({ ...cell })))
+
+  return {
+    field: [...padding, ...remaining],
+    clearedLines,
+  }
 }
 
 export function canPlaceShape(
