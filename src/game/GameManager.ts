@@ -731,13 +731,9 @@ export class GameManager {
       return 1
     }
 
-    if (!state.hasClearedLine) {
-      return 2
-    }
-
     const baseline = state.firstClearDropCount ?? state.minoDrops
     const progress = Math.max(0, state.minoDrops - baseline)
-    return 3 + Math.floor(progress / 5)
+    return 2 + Math.floor(progress / 5)
   }
 }
 
