@@ -50,10 +50,6 @@ export function GameElement() {
 
     setManager((current) => GameManager.dropActiveMino(current, deltaCells))
   }, [])
-  const applyHardDrop = useCallback(() => {
-    setManager((current) => GameManager.hardDropActiveMino(current))
-  }, [])
-
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
       if (manager.state.gameOver) {
@@ -138,16 +134,16 @@ export function GameElement() {
 
     const isClick =
       dragState.current.appliedHorizontal === 0 && dragState.current.appliedVertical === 0 && event.type === 'pointerup'
-    if (isClick) {
-      applyHardDrop()
+    if (isClick && !GameManager.isActiveMinoInTopRow(manager.state)) {
+      setManager((current) => GameManager.hardDropActiveMino(current))
     }
 
     dragState.current.pointerId = null
     dragState.current.startX = 0
     dragState.current.startY = 0
     dragState.current.appliedHorizontal = 0
-  dragState.current.appliedVertical = 0
-}, [applyHardDrop])
+    dragState.current.appliedVertical = 0
+  }, [manager.state])
 
   const overlayMetrics = useMemo(() => computeOverlayMetrics(layout, cols, rows), [layout, cols, rows])
   const handleRestart = useCallback(() => {

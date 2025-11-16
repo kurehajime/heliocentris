@@ -735,6 +735,21 @@ export class GameManager {
     const progress = Math.max(0, state.minoDrops - baseline)
     return 2 + Math.floor(progress / 5)
   }
+
+  static isActiveMinoInTopRow(state: GameState): boolean {
+    if (!state.activeMino) {
+      return false
+    }
+
+    if (state.activeMino.row <= 0) {
+      return true
+    }
+
+    const shape = GameManager.getShapeFor(state.activeMino.mino, state.activeMino.rotation)
+    return shape.some((row, dy) =>
+      row.some((cell) => cell.state !== CELL_STATE.Empty && state.activeMino!.row + dy === 0),
+    )
+  }
 }
 
 function createEmptyCell(): Cell {
