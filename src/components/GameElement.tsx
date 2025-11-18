@@ -291,12 +291,13 @@ export function GameElement() {
               </text>
               <text
                 x={overlayMetrics.cardWidth / 2}
-                y={overlayMetrics.messageY}
-                fill="#cbd5f5"
-                fontSize={13}
+                y={overlayMetrics.messageY + FIELD_CELL_SIZE * 3}
+                fill="#f8fafc"
+                fontSize={FIELD_CELL_SIZE * 4}
+                fontWeight={700}
                 textAnchor="middle"
               >
-                ...
+                {manager.state.lines}
               </text>
               <g
                 className="game-over-button"
