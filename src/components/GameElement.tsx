@@ -7,7 +7,7 @@ import { FieldElement } from './FieldElement'
 const FIELD_CELL_SIZE = 18
 const HORIZONTAL_MARGIN_CELLS = 2
 const VERTICAL_PADDING = 32
-const STATS_ROWS = 5
+const STATS_ROWS = 6
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
@@ -117,17 +117,17 @@ export function GameElement() {
   )
 
   const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
-      if (dragState.current.pointerId !== event.pointerId) {
-        if (event.pointerType !== 'mouse') {
-          return
-        }
-
-        dragState.current.pointerId = event.pointerId
-        dragState.current.startX = event.clientX
-        dragState.current.startY = event.clientY
-        dragState.current.appliedHorizontal = 0
-        dragState.current.appliedVertical = 0
+    if (dragState.current.pointerId !== event.pointerId) {
+      if (event.pointerType !== 'mouse') {
+        return
       }
+
+      dragState.current.pointerId = event.pointerId
+      dragState.current.startX = event.clientX
+      dragState.current.startY = event.clientY
+      dragState.current.appliedHorizontal = 0
+      dragState.current.appliedVertical = 0
+    }
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -248,13 +248,13 @@ export function GameElement() {
           <rect
             width={cols * FIELD_CELL_SIZE}
             height={STATS_ROWS * FIELD_CELL_SIZE}
-            fill="rgba(2, 6, 23, 0.5)"
+            fill="transparent"
           />
           <text
             x={(cols * FIELD_CELL_SIZE) / 2}
             y={(STATS_ROWS * FIELD_CELL_SIZE) / 2 + FIELD_CELL_SIZE / 3}
-            fill="#f8fafc"
-            fontSize={FIELD_CELL_SIZE * 2.5}
+            fill="#f8fafc77"
+            fontSize={FIELD_CELL_SIZE * 4}
             fontWeight={700}
             textAnchor="middle"
           >
