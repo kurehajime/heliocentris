@@ -181,6 +181,38 @@ export function GameElement() {
     }
   }, [advanceTick])
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (manager.state.gameOver) {
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        setManager((current) => GameManager.shiftGroundByCells(current, -1))
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        setManager((current) => GameManager.shiftGroundByCells(current, 1))
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        if (!GameManager.isActiveMinoInTopRow(manager.state)) {
+          setManager((current) => GameManager.hardDropActiveMino(current))
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [manager.state])
+
   return (
     <div className="game-element" style={{ aspectRatio: layout.aspectRatio }}>
       <svg
