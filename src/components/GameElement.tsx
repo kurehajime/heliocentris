@@ -11,6 +11,7 @@ const STATS_ROWS = 6
 
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
+  const [hasSwiped, setHasSwiped] = useState(false)
   const dragState = useRef<{
     pointerId: number | null
     startX: number
@@ -102,6 +103,9 @@ export function GameElement() {
           dragState.current.appliedVertical = dropCells
           applySoftDrop(delta)
         }
+        if (!hasSwiped) {
+          setHasSwiped(true)
+        }
         return
       }
 
@@ -111,9 +115,12 @@ export function GameElement() {
         const deltaDiff = cellDelta - dragState.current.appliedHorizontal
         dragState.current.appliedHorizontal = cellDelta
         applyGroundShift(deltaDiff)
+        if (!hasSwiped && deltaDiff !== 0) {
+          setHasSwiped(true)
+        }
       }
     },
-    [applyGroundShift, applySoftDrop, manager.state.gameOver, layout.viewHeight, layout.viewWidth],
+    [applyGroundShift, applySoftDrop, hasSwiped, layout.viewHeight, layout.viewWidth, manager.state.gameOver],
   )
 
   const endDrag = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
@@ -191,12 +198,18 @@ export function GameElement() {
       if (event.key === 'ArrowLeft') {
         event.preventDefault()
         setManager((current) => GameManager.shiftGroundByCells(current, -1))
+        if (!hasSwiped) {
+          setHasSwiped(true)
+        }
         return
       }
 
       if (event.key === 'ArrowRight') {
         event.preventDefault()
         setManager((current) => GameManager.shiftGroundByCells(current, 1))
+        if (!hasSwiped) {
+          setHasSwiped(true)
+        }
         return
       }
 
@@ -204,6 +217,9 @@ export function GameElement() {
         event.preventDefault()
         if (!GameManager.isActiveMinoInTopRow(manager.state)) {
           setManager((current) => GameManager.hardDropActiveMino(current))
+          if (!hasSwiped) {
+            setHasSwiped(true)
+          }
         }
       }
     }
@@ -261,6 +277,41 @@ export function GameElement() {
             {manager.state.lines}
           </text>
         </g>
+        {!hasSwiped && (
+          <g className="swipe-overlay" pointerEvents="none">
+            {(() => {
+              const demoCol = Math.floor((cols - 2) / 2)
+              const demoRow = rows - 2
+              const blockX = layout.fieldX + demoCol * FIELD_CELL_SIZE
+              const blockY = layout.fieldY + demoRow * FIELD_CELL_SIZE
+              const arrowWidth = FIELD_CELL_SIZE * 2.5
+              const arrowHeight = FIELD_CELL_SIZE * 3.5
+              const arrowOffsetY = blockY + FIELD_CELL_SIZE - arrowHeight / 2
+              const gap = FIELD_CELL_SIZE * 0.5
+
+              return (
+                <>
+                  <image
+                    href="/left.svg"
+                    x={blockX - arrowWidth - gap}
+                    y={arrowOffsetY}
+                    width={arrowWidth}
+                    height={arrowHeight}
+                    opacity={0.7}
+                  />
+                  <image
+                    href="/right.svg"
+                    x={blockX + FIELD_CELL_SIZE * 2 + gap}
+                    y={arrowOffsetY}
+                    width={arrowWidth}
+                    height={arrowHeight}
+                    opacity={0.7}
+                  />
+                </>
+              )
+            })()}
+          </g>
+        )}
         {gameOver && (
           <g
             className="game-overlay"
