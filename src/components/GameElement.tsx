@@ -284,10 +284,16 @@ export function GameElement() {
               const demoRow = rows - 2
               const blockX = layout.fieldX + demoCol * FIELD_CELL_SIZE
               const blockY = layout.fieldY + demoRow * FIELD_CELL_SIZE
+              const blockWidth = FIELD_CELL_SIZE * 2
+              const blockHeight = FIELD_CELL_SIZE * 2
               const arrowWidth = FIELD_CELL_SIZE * 2.5
               const arrowHeight = FIELD_CELL_SIZE * 3.5
               const arrowOffsetY = blockY + FIELD_CELL_SIZE - arrowHeight / 2
               const gap = FIELD_CELL_SIZE * 0.5
+              const touchWidth = FIELD_CELL_SIZE * 3
+              const touchHeight = FIELD_CELL_SIZE * 3
+              const touchX = blockX + (blockWidth - touchWidth) / 2
+              const touchY = blockY + blockHeight - FIELD_CELL_SIZE * 1.5
 
               return (
                 <>
@@ -301,10 +307,18 @@ export function GameElement() {
                   />
                   <image
                     href="/right.svg"
-                    x={blockX + FIELD_CELL_SIZE * 2 + gap}
+                    x={blockX + blockWidth + gap}
                     y={arrowOffsetY}
                     width={arrowWidth}
                     height={arrowHeight}
+                    opacity={0.7}
+                  />
+                  <image
+                    href="/touch.svg"
+                    x={touchX}
+                    y={touchY}
+                    width={touchWidth}
+                    height={touchHeight}
                     opacity={0.7}
                   />
                 </>
