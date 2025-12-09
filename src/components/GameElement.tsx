@@ -12,6 +12,7 @@ const STATS_ROWS = 6
 export function GameElement() {
   const [manager, setManager] = useState(() => GameManager.bootstrap())
   const [hasSwiped, setHasSwiped] = useState(false)
+  const assetPath = useCallback((path: string) => `${import.meta.env.BASE_URL}${path}`, [])
   const dragState = useRef<{
     pointerId: number | null
     startX: number
@@ -298,7 +299,7 @@ export function GameElement() {
               return (
                 <>
                   <image
-                    href="/left.svg"
+                    href={assetPath('left.svg')}
                     x={blockX - arrowWidth - gap}
                     y={arrowOffsetY}
                     width={arrowWidth}
@@ -306,7 +307,7 @@ export function GameElement() {
                     opacity={0.7}
                   />
                   <image
-                    href="/right.svg"
+                    href={assetPath('right.svg')}
                     x={blockX + blockWidth + gap}
                     y={arrowOffsetY}
                     width={arrowWidth}
@@ -314,7 +315,7 @@ export function GameElement() {
                     opacity={0.7}
                   />
                   <image
-                    href="/touch.svg"
+                    href={assetPath('touch.svg')}
                     x={touchX}
                     y={touchY}
                     width={touchWidth}
